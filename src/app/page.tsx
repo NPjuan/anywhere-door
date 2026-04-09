@@ -30,6 +30,7 @@ import { HeroSection } from '@/components/home/HeroSection'
 import { PromptPreviewCard } from '@/components/home/PromptPreviewCard'
 import { PoweredByName } from '@/components/home/PoweredByName'
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge'
+import { PlanningWarning } from '@/components/home/PlanningWarning'
 
 export default function HomePage() {
   const {
@@ -37,6 +38,7 @@ export default function HomePage() {
     previewPrompt,
     finalPrompt,
     error,
+    warning,
     generatePromptPreview,
     setFinalPrompt,
     startPlanning,
@@ -254,6 +256,7 @@ export default function HomePage() {
                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                   className="mt-5"
                 >
+                  <PlanningWarning warning={warning} onRetry={retryAfterFailure} />
                   <AgentStatusPanel onInterrupt={interrupt} />
                 </motion.div>
               )}

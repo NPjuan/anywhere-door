@@ -64,7 +64,7 @@ export const HomeForm = memo(({ onSubmit, error }: HomeFormProps) => {
     setMustAvoid,
   } = useSearchStore()
 
-  const valid = useSearchStore((s) => s.isValid())
+  const isValid = useSearchStore((s) => s.isValid())
   const { hotelPOI, mustVisit, mustAvoid } = params
 
   // ===== 使用 useCallback 避免子组件不必要的重新渲染 =====
@@ -74,20 +74,37 @@ export const HomeForm = memo(({ onSubmit, error }: HomeFormProps) => {
   const handleDateRangeChange = useCallback((s: string, e: string) => setDateRange(s, e), [setDateRange])
   const handlePromptChange = useCallback((p: string) => setPrompt(p), [setPrompt])
   const handlePresetClick = useCallback((prompt: string) => setPrompt(prompt), [setPrompt])
-  const handleSetHotelPOI = useCallback((p: PlacePOI | null) => setHotelPOI(p), [setHotelPOI])
-  const handleAddMustVisit = useCallback((p: PlacePOI | null) => {
-    if (p && !mustVisit.some((v) => v.name === p.name)) {
-      setMustVisit([...mustVisit, p])
+  
+  const handleSetHotelPOI = useCallback((p: PlacePOI | PlacePOI[] | null) => {
+    if (Array.isArray(p)) {
+      setHotelPOI(p[0] ?? null)
+    } else {
+      setHotelPOI(p)
     }
+  }, [setHotelPOI])
+  
+  const handleAddMustVisit = useCallback((pois: PlacePOI | PlacePOI[] | null) => {
+    const poiArray = Array.isArray(pois) ? pois : pois ? [pois] : []
+    poiArray.forEach(p => {
+      if (!mustVisit.some((v) => v.name === p.name)) {
+        setMustVisit([...mustVisit, p])
+      }
+    })
   }, [mustVisit, setMustVisit])
+  
   const handleRemoveMustVisit = useCallback((i: number) => {
     setMustVisit(mustVisit.filter((_, j) => j !== i))
   }, [mustVisit, setMustVisit])
-  const handleAddMustAvoid = useCallback((p: PlacePOI | null) => {
-    if (p && !mustAvoid.some((v) => v.name === p.name)) {
-      setMustAvoid([...mustAvoid, p])
-    }
+  
+  const handleAddMustAvoid = useCallback((pois: PlacePOI | PlacePOI[] | null) => {
+    const poiArray = Array.isArray(pois) ? pois : pois ? [pois] : []
+    poiArray.forEach(p => {
+      if (!mustAvoid.some((v) => v.name === p.name)) {
+        setMustAvoid([...mustAvoid, p])
+      }
+    })
   }, [mustAvoid, setMustAvoid])
+  
   const handleRemoveMustAvoid = useCallback((i: number) => {
     setMustAvoid(mustAvoid.filter((_, j) => j !== i))
   }, [mustAvoid, setMustAvoid])
@@ -342,15 +359,15 @@ export const HomeForm = memo(({ onSubmit, error }: HomeFormProps) => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!valid()}
+              disabled={!isValid}
               className="w-full mt-6 py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2"
               style={{
-                background: valid()
+                background: isValid
                   ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
                   : '#F3F4F6',
-                color: valid() ? '#FFFFFF' : '#9CA3AF',
-                boxShadow: valid() ? '0 4px 14px rgba(37,99,235,0.30)' : 'none',
-                cursor: valid() ? 'pointer' : 'not-allowed',
+                color: isValid ? '#FFFFFF' : '#9CA3AF',
+                boxShadow: isValid ? '0 4px 14px rgba(37,99,235,0.30)' : 'none',
+                cursor: isValid ? 'pointer' : 'not-allowed',
                 border: 'none',
               }}
             >

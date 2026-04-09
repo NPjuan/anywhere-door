@@ -1,7 +1,6 @@
 'use client'
 
 import { Mentions } from 'antd'
-import type { MentionsRef } from 'antd'
 import { useRef, useEffect, useCallback } from 'react'
 import type { DayPlan, Activity } from '@/lib/agents/types'
 
@@ -37,7 +36,7 @@ export function RefineInput({
   placeholder = '描述调整需求，输入 @ 搜索并引用行程地点...',
   rows = 3,
 }: RefineInputProps) {
-  const mentionsRef = useRef<MentionsRef>(null)
+  const mentionsRef = useRef<any>(null)
   const allActivities = getAllActivities(dayPlans)
 
   const insertMention = useCallback((activity: Activity, dayIndex: number) => {

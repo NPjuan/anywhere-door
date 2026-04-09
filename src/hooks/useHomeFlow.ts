@@ -19,11 +19,14 @@ import { getDeviceId } from '@/lib/deviceId'
 
 export type HomeStep = 'form' | 'generating' | 'prompt-preview' | 'planning' | 'done'
 
+export type WarningType = 'slow-processing' | 'taking-longer' | null
+
 interface HomeFlowState {
   step:          HomeStep
   previewPrompt: string
   finalPrompt:   string
   error:         string | null
+  warning:       WarningType
 }
 
 type HomeAction =
@@ -34,6 +37,7 @@ type HomeAction =
   | { type: 'START_PLANNING' }
   | { type: 'PLANNING_DONE' }
   | { type: 'SET_ERROR'; error: string }
+  | { type: 'SET_WARNING'; warning: WarningType }
   | { type: 'RESET' }
 
 const initialState: HomeFlowState = {
@@ -41,17 +45,19 @@ const initialState: HomeFlowState = {
   previewPrompt: '',
   finalPrompt:   '',
   error:         null,
+  warning:       null,
 }
 
 function reducer(state: HomeFlowState, action: HomeAction): HomeFlowState {
   switch (action.type) {
-    case 'START_GENERATING':   return { ...state, step: 'generating', previewPrompt: '', error: null }
+    case 'START_GENERATING':   return { ...state, step: 'generating', previewPrompt: '', error: null, warning: null }
     case 'APPEND_PROMPT':      return { ...state, previewPrompt: state.previewPrompt + action.chunk }
     case 'PROMPT_READY':       return { ...state, step: 'prompt-preview', finalPrompt: state.previewPrompt }
     case 'SET_FINAL_PROMPT':   return { ...state, finalPrompt: action.prompt }
-    case 'START_PLANNING':     return { ...state, step: 'planning' }
-    case 'PLANNING_DONE':      return { ...state, step: 'done' }
-    case 'SET_ERROR':          return { ...state, error: action.error, step: 'form' }
+    case 'START_PLANNING':     return { ...state, step: 'planning', warning: null }
+    case 'PLANNING_DONE':      return { ...state, step: 'done', warning: null }
+    case 'SET_WARNING':        return { ...state, warning: action.warning }
+    case 'SET_ERROR':          return { ...state, error: action.error, step: 'form', warning: null }
     case 'RESET':              return { ...initialState }
     default:                   return state
   }
@@ -68,6 +74,8 @@ interface PollingState {
   startTime: number
   lastUpdateTime: number
   staleWarningShown: boolean
+  slowWarningShown: boolean
+  longerWarningShown: boolean
 }
 
 export function useHomeFlow() {
@@ -89,7 +97,7 @@ export function useHomeFlow() {
       finalPrompt:     string
     },
     planId: string,
-  ) => Promise<void>>()
+  ) => Promise<void> | null>(null)
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const synthProgressRef = useRef(0)
@@ -100,6 +108,8 @@ export function useHomeFlow() {
     startTime: Date.now(),
     lastUpdateTime: Date.now(),
     staleWarningShown: false,
+    slowWarningShown: false,
+    longerWarningShown: false,
   })
 
   /* 停止轮询 */
@@ -123,14 +133,17 @@ export function useHomeFlow() {
       startTime: Date.now(),
       lastUpdateTime: Date.now(),
       staleWarningShown: false,
+      slowWarningShown: false,
+      longerWarningShown: false,
     }
 
     pollIntervalRef.current = setInterval(async () => {
       const pollState = pollStateRef.current
       const now = Date.now()
+      const elapsedSinceStart = now - pollState.startTime
       
       // ===== 检查 1: 总超时 (3 分钟) =====
-      if (now - pollState.startTime > 180000) {
+      if (elapsedSinceStart > 180000) {
         stopPolling()
         dispatch({ 
           type: 'SET_ERROR', 
@@ -149,7 +162,21 @@ export function useHomeFlow() {
         return
       }
 
-      // ===== 检查 3: 30 秒无更新警告 (仅显示一次) =====
+      // ===== 检查 3: 30 秒警告 =====
+      if (elapsedSinceStart > 30000 && !pollState.slowWarningShown) {
+        pollState.slowWarningShown = true
+        dispatch({ type: 'SET_WARNING', warning: 'slow-processing' })
+        console.warn(`[useHomeFlow] Plan ${planId} processing slowly (30s+)`)
+      }
+
+      // ===== 检查 4: 90 秒警告 =====
+      if (elapsedSinceStart > 90000 && !pollState.longerWarningShown) {
+        pollState.longerWarningShown = true
+        dispatch({ type: 'SET_WARNING', warning: 'taking-longer' })
+        console.warn(`[useHomeFlow] Plan ${planId} taking longer than expected (90s+)`)
+      }
+
+      // ===== 检查 5: 30 秒无更新警告 (用于调试) =====
       if (now - pollState.lastUpdateTime > 30000 && !pollState.staleWarningShown) {
         pollState.staleWarningShown = true
         console.warn(`[useHomeFlow] Plan ${planId} has no update for 30s`)

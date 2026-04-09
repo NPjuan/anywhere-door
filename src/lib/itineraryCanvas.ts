@@ -46,8 +46,7 @@ export async function downloadDayAsImage(
   })
 
   await result.download({
-    format:   'png',
-    filename: `${itinerary.title}-Day${day.day}`,
+    filename: `${itinerary.title}-Day${day.day}.png`,
   })
 }
 

@@ -190,14 +190,14 @@ export function attemptJSONRepair(text: string): string {
  * @example
  * const itinerary = parseJSONWithGuard<FullItinerary>(
  *   text,
- *   (obj): obj is FullItinerary => 'id' in obj && 'days' in obj
+ *   (obj: unknown) => 'id' in obj && 'days' in obj
  * )
  */
 export function parseJSONWithGuard<T>(
   text: string,
-  guard: (obj: unknown): obj is T
+  guard: (obj: unknown) => boolean
 ): T | null {
-  const parsed = parseJSON(text)
+  const parsed = parseJSON<T>(text)
   if (parsed === null) return null
   
   if (guard(parsed)) {
