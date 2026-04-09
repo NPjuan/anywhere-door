@@ -110,7 +110,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
           {/* 当天标题 */}
           <div style={{ borderLeft: '3px solid #2563EB', paddingLeft: 12 }}>
             <p className="text-xs" style={{ color: '#94A3B8' }}>
-              第 {safeActiveDay + 1} 天 · {plan.date}
+              第 {safeActiveDay + 1} 天{/^\d{4}-\d{2}-\d{2}$/.test(plan.date ?? '') ? ` · ${plan.date}` : ''}
             </p>
             <h3 className="text-base font-semibold mt-0.5" style={{ color: '#0F172A' }}>
               {plan.title}

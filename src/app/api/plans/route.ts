@@ -38,19 +38,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  const page  = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10))
+  const limit = Math.min(50, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '10', 10)))
+  const from  = (page - 1) * limit
+  const to    = from + limit - 1
+
+  // 同时查总数和当前页数据
+  const { data, error, count } = await supabase
     .from('plans')
-    .select('id, status, title, summary, destination, start_date, end_date, days_count, budget_low, budget_high, saved_at')
+    .select('id, status, title, summary, destination, start_date, end_date, days_count, budget_low, budget_high, saved_at', { count: 'exact' })
     .eq('device_id', deviceId)
     .order('saved_at', { ascending: false })
-    .limit(50)
+    .range(from, to)
 
   if (error) {
     console.error('[GET /api/plans]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ plans: data ?? [] })
+  return NextResponse.json({
+    plans: data ?? [],
+    total: count ?? 0,
+    page,
+    limit,
+    totalPages: Math.ceil((count ?? 0) / limit),
+  })
 }
 
 export async function POST(req: NextRequest) {

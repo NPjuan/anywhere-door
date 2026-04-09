@@ -1,21 +1,21 @@
-'use client'
+'use client';
 
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
-import { AgentStatusPanel } from '@/components/agents/AgentStatusPanel'
-import { DayTimeline } from '@/components/itinerary/DayTimeline'
-import { RouteMap } from '@/components/itinerary/RouteMap'
-import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote'
-import { ExportButton } from '@/components/itinerary/ExportButton'
-import { RefineInput } from '@/components/form/RefineInput'
-import type { Activity } from '@/lib/agents/types'
-import type { XHSNote } from '@/lib/agents/types'
-import { useHomeFlow } from '@/hooks/useHomeFlow'
-import { useSearchStore } from '@/lib/stores/searchStore'
-import { useItineraryStore } from '@/lib/stores/itineraryStore'
-import { getDeviceId } from '@/lib/deviceId'
-import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground';
+import { AgentStatusPanel } from '@/components/agents/AgentStatusPanel';
+import { DayTimeline } from '@/components/itinerary/DayTimeline';
+import { RouteMap } from '@/components/itinerary/RouteMap';
+import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote';
+import { ExportButton } from '@/components/itinerary/ExportButton';
+import { RefineInput } from '@/components/form/RefineInput';
+import type { Activity } from '@/lib/agents/types';
+import type { XHSNote } from '@/lib/agents/types';
+import { useHomeFlow } from '@/hooks/useHomeFlow';
+import { useSearchStore } from '@/lib/stores/searchStore';
+import { useItineraryStore } from '@/lib/stores/itineraryStore';
+import { getDeviceId } from '@/lib/deviceId';
+import Link from 'next/link';
 import {
   MapPin,
   Calendar,
@@ -24,13 +24,12 @@ import {
   FolderOpen,
   RefreshCw,
   Send,
-} from 'lucide-react'
-import { HomeForm } from '@/components/home/HomeForm'
-import { HeroSection } from '@/components/home/HeroSection'
-import { PromptPreviewCard } from '@/components/home/PromptPreviewCard'
-import { PoweredByName } from '@/components/home/PoweredByName'
-import { DeviceIdBadge } from '@/components/home/DeviceIdBadge'
-import { PlanningWarning } from '@/components/home/PlanningWarning'
+} from 'lucide-react';
+import { HomeForm } from '@/components/home/HomeForm';
+import { HeroSection } from '@/components/home/HeroSection';
+import { PromptPreviewCard } from '@/components/home/PromptPreviewCard';
+import { PoweredByName } from '@/components/home/PoweredByName';
+import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 
 export default function HomePage() {
   const {
@@ -38,37 +37,40 @@ export default function HomePage() {
     previewPrompt,
     finalPrompt,
     error,
-    warning,
     generatePromptPreview,
     setFinalPrompt,
     startPlanning,
     interrupt,
     retryAfterFailure,
     goBack,
-  } = useHomeFlow()
+  } = useHomeFlow();
 
-  const { params, isValid } = useSearchStore()
-  const { itinerary, activeDay, setActiveDay, planId } = useItineraryStore()
-  const [planCount, setPlanCount] = useState(0)
-  const deviceIdShort =
-    typeof window !== 'undefined' ? getDeviceId().slice(0, 12) : ''
-  const [showRefine, setShowRefine] = useState(false)
-  const [refineFeedback, setRefineFeedback] = useState('')
+  const { params, isValid } = useSearchStore();
+  const { itinerary, activeDay, setActiveDay, planId } = useItineraryStore();
+  const [planCount, setPlanCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  // mounted 后才读 localStorage，避免 SSR/hydration 不一致
+  useEffect(() => { setMounted(true); }, []);
+
+  const deviceIdShort = mounted ? getDeviceId().slice(0, 12) : '';
+  const [showRefine, setShowRefine] = useState(false);
+  const [refineFeedback, setRefineFeedback] = useState('');
   const refineInsertRef = useRef<
     ((activity: Activity, dayIndex: number) => void) | null
-  >(null)
+  >(null);
 
   useEffect(() => {
-    const id = getDeviceId()
-    if (!id) return
-    fetch(`/api/plans?deviceId=${encodeURIComponent(id)}`)
+    const id = getDeviceId();
+    if (!id) return;
+    fetch(`/api/plans?deviceId=${encodeURIComponent(id)}&page=1&limit=1`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.plans && setPlanCount(d.plans.length))
-      .catch(() => {})
-  }, [step])
+      .then((d) => d?.total != null && setPlanCount(d.total))
+      .catch(() => {});
+  }, [step]);
 
-  const promptAreaRef = useRef<HTMLDivElement>(null)
-  const planAreaRef = useRef<HTMLDivElement>(null)
+  const promptAreaRef = useRef<HTMLDivElement>(null);
+  const planAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (step === 'generating' || step === 'prompt-preview') {
@@ -79,7 +81,7 @@ export default function HomePage() {
             block: 'start',
           }),
         150
-      )
+      );
     }
     if (step === 'planning' || step === 'done') {
       setTimeout(
@@ -89,13 +91,13 @@ export default function HomePage() {
             block: 'start',
           }),
         150
-      )
+      );
     }
-  }, [step])
+  }, [step]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!isValid()) return
+    e.preventDefault();
+    if (!isValid()) return;
 
     generatePromptPreview({
       originCode: params.origin!.code,
@@ -106,14 +108,25 @@ export default function HomePage() {
       hotelName: params.hotelPOI?.name,
       hotelAddress: params.hotelPOI ? `${params.hotelPOI.address}` : undefined,
       mustVisitNames:
-        params.mustVisit.length > 0 ? params.mustVisit.map((p) => p.name) : undefined,
+        params.mustVisit.length > 0
+          ? params.mustVisit.map((p) => p.name)
+          : undefined,
       mustAvoidNames:
-        params.mustAvoid.length > 0 ? params.mustAvoid.map((p) => p.name) : undefined,
-    })
-  }
+        params.mustAvoid.length > 0
+          ? params.mustAvoid.map((p) => p.name)
+          : undefined,
+      originAirportName: params.origin!.selectedAirportName,
+      originAirportCode: params.origin!.selectedAirportCode,
+      destAirportName: params.destination!.selectedAirportName,
+      destAirportCode: params.destination!.selectedAirportCode,
+      arrivalTime: params.arrivalTime || undefined,
+      departureTime: params.departureTime || undefined,
+      travelers: params.travelers ?? 1,
+    });
+  };
 
   const handleConfirm = () => {
-    if (!params.origin || !params.destination || !finalPrompt.trim()) return
+    if (!params.origin || !params.destination || !finalPrompt.trim()) return;
 
     const airportHint = [
       params.origin.selectedAirportName &&
@@ -122,10 +135,16 @@ export default function HomePage() {
         `抵达机场：${params.destination.selectedAirportName}（${params.destination.selectedAirportCode}）`,
     ]
       .filter(Boolean)
-      .join('；')
+      .join('；');
 
     const extras = [
       airportHint && `[机场] ${airportHint}，请将机场作为行程起止 POI 纳入规划`,
+      params.arrivalTime &&
+        `[落地时间] 第一天落地时间为 ${params.arrivalTime}，请从该时间点开始规划当天行程`,
+      params.departureTime &&
+        `[返程时间] 最后一天返程起飞时间为 ${params.departureTime}，请确保行程在此前结束并预留前往机场的时间`,
+      (params.travelers ?? 1) > 1 &&
+        `[人数] 共 ${params.travelers} 人出行，请据此调整住宿、餐厅和活动容量`,
       params.hotelPOI &&
         `[酒店] 住宿地址：${params.hotelPOI.name}（${params.hotelPOI.address}，坐标 ${params.hotelPOI.lng},${params.hotelPOI.lat}），请以酒店为出发/返回基点规划每日行程`,
       params.mustVisit.length > 0 &&
@@ -133,12 +152,14 @@ export default function HomePage() {
           .map((p) => `${p.name}（${p.address}）`)
           .join('、')}`,
       params.mustAvoid.length > 0 &&
-        `[不去] 请避开以下地点：${params.mustAvoid.map((p) => p.name).join('、')}`,
+        `[不去] 请避开以下地点：${params.mustAvoid
+          .map((p) => p.name)
+          .join('、')}`,
     ]
       .filter(Boolean)
-      .join('\n')
+      .join('\n');
 
-    const enrichedPrompt = extras ? `${finalPrompt}\n\n${extras}` : finalPrompt
+    const enrichedPrompt = extras ? `${finalPrompt}\n\n${extras}` : finalPrompt;
 
     startPlanning({
       originCode: params.origin.selectedAirportCode ?? params.origin.code,
@@ -146,31 +167,67 @@ export default function HomePage() {
       startDate: params.startDate,
       endDate: params.endDate,
       finalPrompt: enrichedPrompt,
-    })
-  }
+      travelers: params.travelers ?? 1,
+    });
+  };
 
   const handleRefine = () => {
-    if (!refineFeedback.trim() || !params.origin || !params.destination)
-      return
+    if (!refineFeedback.trim() || !params.origin || !params.destination) return;
     const currentSummary = itinerary
       ? `当前行程标题：${itinerary.title}\n当前行程概要：${itinerary.summary}`
-      : ''
-    const refinePrompt = `${currentSummary}\n\n用户反馈调整意见：${refineFeedback.trim()}\n\n请根据以上反馈，重新规划行程。保持整体框架不变，只针对用户提出的问题进行调整。`
-    setShowRefine(false)
-    setRefineFeedback('')
+      : '';
+    const refinePrompt = `${currentSummary}\n\n用户反馈调整意见：${refineFeedback.trim()}\n\n请根据以上反馈，重新规划行程。保持整体框架不变，只针对用户提出的问题进行调整。`;
+    setShowRefine(false);
+    setRefineFeedback('');
     startPlanning({
       originCode: params.origin.selectedAirportCode ?? params.origin.code,
       destinationCode: params.destination.code,
       startDate: params.startDate,
       endDate: params.endDate,
       finalPrompt: refinePrompt,
-    })
-  }
+    });
+  };
 
   const xhsNotes: XHSNote[] =
     (itinerary as unknown as { xhsNotes?: XHSNote[] })?.xhsNotes ??
     (itinerary as unknown as { notes?: XHSNote[] })?.notes ??
-    []
+    [];
+
+  /* ── 未挂载时显示全屏 loading ── */
+  if (!mounted) {
+    return (
+      <main className="relative min-h-screen flex items-center justify-center" style={{ background: '#F8FAFF' }}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col items-center gap-4"
+        >
+          {/* 门形状 loading 图标 */}
+          <div className="relative" style={{ width: 48, height: 56 }}>
+            <div
+              className="w-full h-full rounded-t-lg"
+              style={{ background: 'linear-gradient(160deg, #2563EB 0%, #6366f1 100%)', opacity: 0.15 }}
+            />
+            <motion.div
+              className="absolute inset-0 rounded-t-lg"
+              style={{ background: 'linear-gradient(160deg, #2563EB 0%, #6366f1 100%)', transformOrigin: 'left center' }}
+              animate={{ scaleX: [1, 0.15, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
+            />
+          </div>
+          <motion.p
+            className="text-sm font-medium"
+            style={{ color: '#2563EB' }}
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            任意门启动中...
+          </motion.p>
+        </motion.div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative min-h-screen" style={{ background: '#F8FAFF' }}>
@@ -178,89 +235,98 @@ export default function HomePage() {
 
       <div className="relative" style={{ zIndex: 1 }}>
         {/* 左上角 — 用户 ID */}
-        <div className="fixed top-5 left-5" style={{ zIndex: 50 }}>
+        <motion.div
+          className="fixed top-5 left-5"
+          style={{ zIndex: 50 }}
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        >
           {deviceIdShort && <DeviceIdBadge id={deviceIdShort} />}
-        </div>
+        </motion.div>
 
-        {/* 右上角 — 我的计划入口 */}
-        <div className="fixed top-5 right-5" style={{ zIndex: 50 }}>
-          <Link
-            href="/plans"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
-            style={{
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              color: '#374151',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            }}
+        {/* 右上角 — 我的计划入口（有 deviceId 且有计划时才显示）*/}
+        {deviceIdShort && (
+          <motion.div
+            className="fixed top-5 right-5"
+            style={{ zIndex: 50 }}
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
-            <FolderOpen size={15} style={{ color: '#2563EB' }} />
-            我的计划
-            {planCount > 0 && (
-              <span
-                className="min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-white font-bold"
-                style={{ background: '#2563EB', fontSize: 10 }}
-              >
-                {planCount}
-              </span>
-            )}
-          </Link>
-        </div>
+            <Link
+              href="/plans"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                color: '#374151',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              }}
+            >
+              <FolderOpen size={15} style={{ color: '#2563EB' }} />
+              我的计划
+              {planCount > 0 && (
+                <span
+                  className="min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ background: '#2563EB', fontSize: 10 }}
+                >
+                  {planCount}
+                </span>
+              )}
+            </Link>
+          </motion.div>
+        )}
 
-        <div className="max-w-6xl mx-auto px-4 py-20">
+        <div className="max-w-6xl mx-auto px-4 pt-8">
           <div className="max-w-3xl mx-auto">
             {/* Hero */}
             <HeroSection />
 
-            {/* Form */}
-            {(step === 'form' || step === 'generating' || step === 'prompt-preview') && (
-              <>
-                <HomeForm onSubmit={handleSubmit} error={error} />
+            {/* Form — 始终可见，带进入动画 */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <HomeForm
+                onSubmit={handleSubmit}
+                error={error}
+                isPlanning={['planning'].includes(step as string)}
+                isDisabled={step === 'generating' || step === 'prompt-preview' || (step as string) === 'planning'}
+              />
 
-                {/* Prompt Preview */}
-                <AnimatePresence>
-                  {(step === 'generating' || step === 'prompt-preview') && (
-                    <motion.div
-                      ref={promptAreaRef}
-                      key="prompt-preview"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                      className="mt-5"
-                    >
-                      <PromptPreviewCard
-                        isGenerating={step === 'generating'}
-                        prompt={
-                          step === 'prompt-preview' ? finalPrompt : previewPrompt
-                        }
-                        onChange={setFinalPrompt}
-                        onBack={goBack}
-                        onConfirm={handleConfirm}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
-
-            {/* Agent Progress */}
-            <AnimatePresence>
-              {step === 'planning' && (
+              {/* Prompt Preview — generating/prompt-preview 时显示，planning 时置灰保留 */}
+              {(step === 'generating' ||
+                step === 'prompt-preview' ||
+                (step as string) === 'planning') && (
                 <motion.div
-                  ref={planAreaRef}
-                  key="planning"
+                  ref={promptAreaRef}
+                  key="prompt-preview"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                   className="mt-5"
                 >
-                  <PlanningWarning warning={warning} onRetry={retryAfterFailure} />
-                  <AgentStatusPanel onInterrupt={interrupt} />
+                  <PromptPreviewCard
+                    isGenerating={step === 'generating'}
+                    isPlanning={(step as string) === 'planning'}
+                    prompt={finalPrompt || previewPrompt}
+                    onChange={setFinalPrompt}
+                    onBack={goBack}
+                    onConfirm={handleConfirm}
+                    onInterrupt={interrupt}
+                  />
                 </motion.div>
               )}
-            </AnimatePresence>
+            </motion.div>
+
+            {/* Agent Progress */}
+            {(step as string) === 'planning' && (
+              <div ref={planAreaRef} className="mt-5">
+                <AgentStatusPanel />
+              </div>
+            )}
           </div>
         </div>
 
@@ -312,7 +378,8 @@ export default function HomePage() {
                         {[
                           {
                             icon: <MapPin size={12} />,
-                            text: itinerary.destination,
+                            text:
+                              params.destination?.name ?? itinerary.destination,
                           },
                           {
                             icon: <Calendar size={12} />,
@@ -344,7 +411,7 @@ export default function HomePage() {
                       <ExportButton itinerary={itinerary} />
                       <button
                         onClick={() => setShowRefine((v) => !v)}
-                        className="flex items-center gap-1.5 text-sm cursor-pointer transition-all duration-150 hover:bg-gray-50 whitespace-nowrap"
+                        className="flex items-center gap-1.5 cursor-pointer transition-all duration-150 hover:bg-gray-50 whitespace-nowrap"
                         style={{
                           background: showRefine ? '#EFF6FF' : '#FFFFFF',
                           border: `1px solid ${
@@ -353,6 +420,8 @@ export default function HomePage() {
                           color: showRefine ? '#2563EB' : '#64748B',
                           padding: '7px 14px',
                           borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 500,
                         }}
                       >
                         <RefreshCw size={13} />
@@ -473,11 +542,11 @@ export default function HomePage() {
                                 ...(d.afternoon ?? []),
                                 ...(d.evening ?? []),
                               ].includes(activity)
-                          )
+                          );
                           refineInsertRef.current?.(
                             activity,
                             dayIndex >= 0 ? dayIndex : activeDay
-                          )
+                          );
                         }}
                       />
                     </div>
@@ -581,9 +650,9 @@ export default function HomePage() {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ status: 'error' }),
-                      }).catch(() => {})
+                      }).catch(() => {});
                     }
-                    retryAfterFailure()
+                    retryAfterFailure();
                   }}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-all"
                   style={{
@@ -604,12 +673,15 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <div
+      <motion.div
         className="relative text-center py-6 text-xs"
         style={{ color: '#CBD5E1', zIndex: 1 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.6 }}
       >
         Powered by <PoweredByName />
-      </div>
+      </motion.div>
     </main>
-  )
+  );
 }

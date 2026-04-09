@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Route, Lightbulb, BookOpen, Sparkles, CheckCircle, AlertCircle, Square } from 'lucide-react'
+import { MapPin, Route, Lightbulb, BookOpen, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAgentStore, type AgentId, type AgentState } from '@/lib/stores/agentStore'
 import { useEffect, useState } from 'react'
 
@@ -103,15 +103,15 @@ function AgentRow({ agent, isLast }: { agent: AgentState; isLast: boolean }) {
           <AnimatePresence mode="wait">
             {isRun && (
               <motion.p
-                key={hint}
-                initial={{ opacity: 0, y: 4 }}
+                key={agent.id === 'synthesis' ? agent.message : hint}
+                initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.3 }}
-                className="text-xs mt-0.5"
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.25 }}
+                className="text-xs mt-0.5 truncate"
                 style={{ color: meta.color }}
               >
-                {hint}
+                {agent.id === 'synthesis' ? (agent.message || '整合行程数据...') : hint}
               </motion.p>
             )}
             {isDone && agent.preview && (
@@ -166,41 +166,22 @@ function AgentRow({ agent, isLast }: { agent: AgentState; isLast: boolean }) {
   )
 }
 
-export function AgentStatusPanel({ onInterrupt }: { onInterrupt?: () => void }) {
+export function AgentStatusPanel() {
   const { agents } = useAgentStore()
-  const allDone = agents.every((a) => a.status === 'done' || a.status === 'error')
 
   return (
-    <div className="w-full flex flex-col gap-2">
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{
-          background: '#FFFFFF',
-          border:     '1px solid #E5E7EB',
-          boxShadow:  '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-      >
-        {agents.map((agent, i) => (
-          <AgentRow key={agent.id} agent={agent} isLast={i === agents.length - 1} />
-        ))}
-      </div>
-
-      {/* 中断按钮（规划进行中时显示）*/}
-      {!allDone && onInterrupt && (
-        <button
-          onClick={onInterrupt}
-          className="flex items-center justify-center gap-1.5 w-full py-2 text-xs cursor-pointer transition-all"
-          style={{
-            background:   'transparent',
-            border:       '1px solid #FECACA',
-            borderRadius: 8,
-            color:        '#EF4444',
-          }}
-        >
-          <Square size={11} />
-          中断生成
-        </button>
-      )}
+    <div
+      className="overflow-hidden"
+      style={{
+        background:   '#FFFFFF',
+        border:       '1px solid #E5E7EB',
+        borderRadius: 8,
+        boxShadow:    '0 1px 3px rgba(0,0,0,0.05)',
+      }}
+    >
+      {agents.map((agent, i) => (
+        <AgentRow key={agent.id} agent={agent} isLast={i === agents.length - 1} />
+      ))}
     </div>
   )
 }

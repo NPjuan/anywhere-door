@@ -1,83 +1,54 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
-## Repository Overview
+## Project Overview
 
-This repository contains a Claude Code skill: **`ui-ux-pro-max`** — a UI/UX design intelligence system with a searchable database of 67 styles, 96 color palettes, 57 font pairings, 25 chart types, 99 UX guidelines, and 13 tech stack guidelines.
+**任意门 Anywhere Door** — AI-powered travel itinerary planning app.
 
-**No build step required.** Pure Python (3.10+), zero external dependencies.
+- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript
+- **State**: Zustand (pure in-memory, no localStorage)
+- **Database**: Supabase PostgreSQL
+- **AI**: DeepSeek (default) / Claude (fallback) via Vercel AI SDK
+- **Map**: Amap (高德地图)
+- **UI**: Tailwind CSS v4 + Ant Design v6 + Framer Motion
 
-## Running the Skill
+Full architecture documentation: `docs/ARCHITECTURE.md`
 
-All commands are run from the skill root directory:
+## Development
 
 ```bash
-cd .claude/skills/ui-ux-pro-max
+pnpm install
+pnpm dev        # http://localhost:3000
+pnpm build
+pnpm lint
 ```
 
-### Core Commands
+## Key Files
 
-```bash
-# Generate full design system (primary workflow)
-python3 scripts/search.py "<product_type> <industry> <keywords>" --design-system [-p "Project Name"]
+| File | Purpose |
+|------|---------|
+| `src/hooks/useHomeFlow.ts` | Core state machine (form → generating → prompt-preview → planning → done) |
+| `src/app/page.tsx` | Main page UI |
+| `src/app/api/agents/orchestrate-bg/route.ts` | Background parallel agent execution |
+| `src/app/api/agents/synthesis-stream/route.ts` | Streaming synthesis (called by frontend) |
+| `src/lib/agents/prompts/index.ts` | All 5 agent system prompts |
+| `src/lib/agents/types.ts` | Zod schemas (POI, DayPlan, FullItinerary) |
+| `src/lib/stores/searchStore.ts` | Form params store |
+| `src/lib/stores/agentStore.ts` | Agent real-time state |
 
-# Generate and persist design system (Master + Overrides pattern)
-python3 scripts/search.py "<query>" --design-system --persist -p "Project Name"
+## Architecture Notes
 
-# Generate page-specific override (requires --persist)
-python3 scripts/search.py "<query>" --design-system --persist -p "Project Name" --page "dashboard"
+- **No localStorage** for app state — all persistence via Supabase `plans` table
+- **Device ID** (`lib/deviceId.ts`) stored in localStorage as user identifier
+- **Planning params** stored in `plans.planning_params` JSONB for page-refresh recovery
+- **Synthesis** runs on frontend (streaming), not in background — detected via `agent_progress.synthesis.status === 'waiting'`
+- **enrichedPrompt** uses `[tag]` prefix lines for structured constraints (airport, hotel, POI, times)
 
-# Search a specific domain
-python3 scripts/search.py "<keyword>" --domain <domain> [-n <max_results>]
+## Code Style
 
-# Get stack-specific implementation guidelines
-python3 scripts/search.py "<keyword>" --stack <stack_name>
-
-# Output as markdown instead of ASCII box
-python3 scripts/search.py "<query>" --design-system -f markdown
-```
-
-### Available Domains
-`product`, `style`, `typography`, `color`, `landing`, `chart`, `ux`, `react`, `web`, `prompt`
-
-### Available Stacks
-`html-tailwind` (default), `react`, `nextjs`, `vue`, `svelte`, `swiftui`, `react-native`, `flutter`, `shadcn`, `jetpack-compose`
-
-## Architecture
-
-```
-.claude/skills/ui-ux-pro-max/
-├── SKILL.md              # Full skill documentation and workflow
-├── scripts/
-│   ├── core.py           # BM25 search engine (no external deps)
-│   ├── search.py         # CLI entry point (argparse)
-│   └── design_system.py  # Multi-domain aggregator + design system generator
-└── data/
-    ├── *.csv             # Core design data (styles, colors, typography, etc.)
-    └── stacks/           # Per-framework implementation guidelines (13 CSVs)
-```
-
-### Three-Tier Architecture
-
-1. **Data Layer** — CSV files in `data/`. Human-readable, version-controllable. Core files cover styles, palettes, fonts, UX rules, landing patterns, chart types, etc. Stack-specific files live in `data/stacks/`.
-
-2. **Search Layer** (`core.py`) — Pure Python BM25 implementation. Each domain maps to one or more CSV files. Auto-domain detection infers domain from query keywords when `--domain` is not specified.
-
-3. **Generation Layer** (`design_system.py`) — `DesignSystemGenerator` runs multi-domain searches in parallel (product + style + color + landing + typography), applies reasoning rules from `ui-reasoning.csv` to select best matches, and outputs a complete design system. The `--persist` flag writes `design-system/MASTER.md` (global) and optionally `design-system/pages/<page>.md` (overrides).
-
-### Master + Overrides Pattern
-
-When `--persist` is used, the design system is saved hierarchically:
-- `design-system/MASTER.md` — global source of truth
-- `design-system/pages/<page>.md` — page-specific deviations that override the master
-
-When implementing a specific page, check for the page override file first; fall back to MASTER.md.
-
-## Skill Workflow (for UI/UX tasks)
-
-1. Analyze user request: extract product type, style keywords, industry, stack
-2. Run `--design-system` to get comprehensive recommendations
-3. Supplement with domain-specific searches as needed
-4. Get stack guidelines (default: `html-tailwind` if user doesn't specify)
-5. Implement using the design system + SKILL.md's pre-delivery checklist
+- TypeScript strict mode
+- Functional components with `memo` for performance-sensitive components
+- `useCallback` for stable references passed to memoized children
+- Inline styles for dynamic values, Tailwind for static layout
+- No `any` types — use proper Zod inference or explicit interfaces

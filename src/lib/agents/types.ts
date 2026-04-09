@@ -35,7 +35,7 @@ export const ActivitySchema = z.object({
 
 export const DayPlanSchema = z.object({
   day:       z.number(),
-  date:      z.string(),
+  date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
   title:     z.string(),
   morning:   z.array(ActivitySchema),
   afternoon: z.array(ActivitySchema),

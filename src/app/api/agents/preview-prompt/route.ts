@@ -18,6 +18,13 @@ export async function POST(req: NextRequest) {
     hotelAddress,
     mustVisitNames,
     mustAvoidNames,
+    originAirportName,
+    originAirportCode,
+    destAirportName,
+    destAirportCode,
+    arrivalTime,
+    departureTime,
+    travelers,
   } = await req.json()
 
   const originCity = POPULAR_CITIES.find((c) => c.code === originCode)?.name ?? originCode
@@ -31,6 +38,23 @@ export async function POST(req: NextRequest) {
 
   // 构建附加约束描述
   const constraints: string[] = []
+
+  if (originAirportName || originAirportCode) {
+    constraints.push(`出发机场：${[originAirportName, originAirportCode].filter(Boolean).join('（').replace(/([^）])$/, '$1）')}`)
+  }
+  if (destAirportName || destAirportCode) {
+    const arrive = [destAirportName, destAirportCode].filter(Boolean).join('（').replace(/([^）])$/, '$1）')
+    const timeNote = arrivalTime ? `，落地时间约 ${arrivalTime}` : ''
+    constraints.push(`抵达机场：${arrive}${timeNote}，请将机场作为第一天行程起点`)
+  } else if (arrivalTime) {
+    constraints.push(`落地时间约 ${arrivalTime}，请从该时间开始规划第一天行程`)
+  }
+  if (departureTime) {
+    constraints.push(`返程起飞时间 ${departureTime}，最后一天行程需在此前结束并预留前往机场时间`)
+  }
+  if (travelers && travelers > 1) {
+    constraints.push(`同行人数：共 ${travelers} 人，请据此推荐合适规模的住宿、餐厅和活动`)
+  }
   if (hotelName || hotelAddress) {
     const hotel = [hotelName, hotelAddress].filter(Boolean).join('，位于')
     constraints.push(`住宿：${hotel}，每天行程需以酒店为出发和返回基点，合理规划出行距离`)

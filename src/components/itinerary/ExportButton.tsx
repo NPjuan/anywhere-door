@@ -87,13 +87,14 @@ export function ExportButton({ itinerary }: ExportButtonProps) {
       {/* 复制文本 */}
       <button onClick={handleCopy} style={{ ...BTN, background: copied ? '#F0FDF4' : '#FFFFFF', border: `1px solid ${copied ? '#BBF7D0' : '#E2E8F0'}`, color: copied ? '#16A34A' : '#64748B' }}>
         {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-        {copied ? '已复制' : '复制行程'}
+        复制行程
       </button>
 
       {/* 分享链接 */}
       <button onClick={handleShare} disabled={!planId} title={planId ? '复制分享链接' : '计划保存后可分享'}
         style={{ ...BTN, background: linkCopied ? '#F0FDF4' : '#FFFFFF', border: `1px solid ${linkCopied ? '#BBF7D0' : '#E2E8F0'}`, color: linkCopied ? '#16A34A' : (!planId ? '#CBD5E1' : '#64748B'), cursor: planId ? 'pointer' : 'not-allowed' }}>
-        {linkCopied ? <><CheckCircle size={13} /> 链接已复制</> : <><Link size={13} /> 分享</>}
+        {linkCopied ? <CheckCircle size={13} /> : <Link size={13} />}
+        分享链接
       </button>
 
       {/* 下载图片 */}

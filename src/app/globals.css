@@ -204,8 +204,16 @@ body {
 }
 
 /* ============================================================
-   工具类 / Utility Classes
+   Hero 标题样式 / Hero title style
    ============================================================ */
+
+.hero-title-text {
+  color: #2563EB;
+  padding-bottom: 0.1em;
+  display: inline-block;
+}
+
+
 
 /* 玻璃态卡片 / Glassmorphism card
    来源: ui-ux-pro-max — backdrop-filter blur(15px), rgba 15-30%, border 1px */

@@ -3,7 +3,9 @@
 import { useCallback, useReducer, useRef, useEffect } from 'react'
 import { useAgentStore, type AgentId } from '@/lib/stores/agentStore'
 import { useItineraryStore } from '@/lib/stores/itineraryStore'
+import { useSearchStore } from '@/lib/stores/searchStore'
 import { getDeviceId } from '@/lib/deviceId'
+import { findCityByCode } from '@/lib/cities'
 
 /* ============================================================
    useHomeFlow — 首页状态机 Hook
@@ -38,6 +40,7 @@ type HomeAction =
   | { type: 'PLANNING_DONE' }
   | { type: 'SET_ERROR'; error: string }
   | { type: 'SET_WARNING'; warning: WarningType }
+  | { type: 'INTERRUPT_TO_PREVIEW' }
   | { type: 'RESET' }
 
 const initialState: HomeFlowState = {
@@ -54,17 +57,57 @@ function reducer(state: HomeFlowState, action: HomeAction): HomeFlowState {
     case 'APPEND_PROMPT':      return { ...state, previewPrompt: state.previewPrompt + action.chunk }
     case 'PROMPT_READY':       return { ...state, step: 'prompt-preview', finalPrompt: state.previewPrompt }
     case 'SET_FINAL_PROMPT':   return { ...state, finalPrompt: action.prompt }
-    case 'START_PLANNING':     return { ...state, step: 'planning', warning: null }
-    case 'PLANNING_DONE':      return { ...state, step: 'done', warning: null }
-    case 'SET_WARNING':        return { ...state, warning: action.warning }
-    case 'SET_ERROR':          return { ...state, error: action.error, step: 'form', warning: null }
-    case 'RESET':              return { ...initialState }
+    case 'START_PLANNING':       return { ...state, step: 'planning', warning: null, error: null }
+    case 'PLANNING_DONE':        return { ...state, step: 'done', warning: null }
+    case 'SET_WARNING':          return { ...state, warning: action.warning }
+    case 'SET_ERROR':            return { ...state, error: action.error, step: 'form', warning: null }
+    case 'INTERRUPT_TO_PREVIEW': return { ...state, step: 'prompt-preview', warning: null, error: null }
+    case 'RESET':                return { ...initialState }
     default:                   return state
   }
 }
 
 /* 当前进行中的 plan ID — 模块级，避免闭包捕获问题 */
 let activePlanId: string | null = null
+
+/* ─────────────────────────────────────────────────────────
+   从流式 JSON 片段中提取友好进度文字
+   策略：正则提取已完成的 "name" / "title" 字段值，转成人话
+───────────────────────────────────────────────────────── */
+const VERBS = ['漫步至', '探访', '前往', '游览', '抵达']
+
+function getSynthesisProgressMessage(text: string): string {
+  // 阶段检测
+  const hasDays  = text.includes('"days"')
+  const hasXhs   = text.includes('"xhsNotes"') || text.includes('"notes"')
+
+  // 提取所有已完整写出的 "name" 值（2–25 字，典型景点名长度）
+  const nameHits = [...text.matchAll(/"name"\s*:\s*"([^"\\]{2,25})"/g)]
+  const lastPOI  = nameHits.length > 0 ? nameHits[nameHits.length - 1][1] : null
+
+  // 提取所有已完整写出的 "title" 值
+  const titleHits = [...text.matchAll(/"title"\s*:\s*"([^"\\]{2,40})"/g)]
+
+  if (hasXhs) {
+    return lastPOI ? `整理 ${lastPOI} 相关攻略...` : '整理旅行攻略...'
+  }
+
+  if (lastPOI && hasDays) {
+    const verb = VERBS[nameHits.length % VERBS.length]
+    return `${verb} ${lastPOI}`
+  }
+
+  if (hasDays && titleHits.length > 1) {
+    const dayTitle = titleHits[titleHits.length - 1][1]
+    return `正在规划 ${dayTitle}...`
+  }
+
+  if (titleHits.length > 0) {
+    return `生成行程：${titleHits[0][1]}`
+  }
+
+  return '整合行程数据...'
+}
 
 /* ===== 轮询状态跟踪接口 ===== */
 interface PollingState {
@@ -83,7 +126,9 @@ export function useHomeFlow() {
   const abortRef = useRef<AbortController | null>(null)
 
   const { updateAgent, appendAgentStream, appendStream, setComplete, reset: resetAgents } = useAgentStore()
+  const synthStreamActiveRef = useRef(false)
   const { setItinerary, clear: clearItinerary, setPlanId, hydrate: hydrateItinerary } = useItineraryStore()
+  const { restore: restoreSearchParams } = useSearchStore()
 
   /* ─────────────────────────────────────────────────────────
      核心规划流程 — 用 ref 包裹，useEffect 可安全调用
@@ -119,6 +164,65 @@ export function useHomeFlow() {
       pollIntervalRef.current = null
     }
   }, [])
+
+  /* 前端主动流式消费 synthesis */
+  const runSynthesisStream = useCallback(async (planId: string) => {
+    try {
+      const res = await fetch('/api/agents/synthesis-stream', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ planId }),
+        signal:  abortRef.current?.signal,
+      })
+      if (!res.ok) throw new Error(`synthesis-stream failed (${res.status})`)
+
+      const reader  = res.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error('No response body')
+
+      let accumulated = ''
+      let lastMessage = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        if (chunk.includes('__SYNTHESIS_ERROR__')) {
+          throw new Error('Synthesis failed on server')
+        }
+        accumulated += chunk
+        appendStream(chunk)
+
+        // 提取友好进度文字，避免频繁 setState 导致抖动
+        const msg = getSynthesisProgressMessage(accumulated)
+        if (msg !== lastMessage) {
+          lastMessage = msg
+          updateAgent('synthesis', {
+            status:   'running',
+            progress: Math.min(synthProgressRef.current, 95),
+            message:  msg,
+          })
+        }
+        synthProgressRef.current = Math.min(synthProgressRef.current + 0.3, 95)
+      }
+
+      // 流结束，从 DB 取最终 itinerary
+      const detail = await fetch(`/api/plans/${planId}`).then(r => r.ok ? r.json() : null)
+      if (detail?.plan?.status === 'done' && detail.plan.itinerary) {
+        setItinerary(JSON.stringify(detail.plan.itinerary))
+        setPlanId(planId)
+        updateAgent('synthesis', { status: 'done', progress: 100, message: '✓ 行程生成完成', streamChunk: '' })
+        setComplete(`plan-${planId}`)
+        dispatch({ type: 'PLANNING_DONE' })
+      } else {
+        throw new Error('Itinerary not found after synthesis')
+      }
+    } catch (err) {
+      synthStreamActiveRef.current = false
+      if ((err as Error).name === 'AbortError') return
+      console.error('[useHomeFlow] synthesis stream error:', err)
+      dispatch({ type: 'SET_ERROR', error: '行程汇总失败，请重试' })
+    }
+  }, [updateAgent, appendStream, setItinerary, setPlanId, setComplete])
 
   /* 启动轮询 — 可被 runPlanning 和刷新恢复共用 */
   const startPollingForPlan = useCallback((planId: string) => {
@@ -217,7 +321,14 @@ export function useHomeFlow() {
             }
           })
           const synth = progress.synthesis
-          if (synth?.status === 'running') {
+          if (synth?.status === 'waiting' && !synthStreamActiveRef.current) {
+            // 4 个并行 agent 全部完成，前端主动发起 synthesis 流式请求
+            synthStreamActiveRef.current = true
+            stopPolling()
+            updateAgent('synthesis', { status: 'running', progress: 0, message: '整合行程中...', streamChunk: '' })
+            // 异步启动流式 synthesis，不阻塞轮询
+            void runSynthesisStream(planId)
+          } else if (synth?.status === 'running') {
             synthProgressRef.current = Math.min(synthProgressRef.current + 3, 95)
             updateAgent('synthesis', { status: 'running', progress: synthProgressRef.current, message: '整合行程中...' })
           } else if (synth?.status === 'done') {
@@ -251,7 +362,7 @@ export function useHomeFlow() {
         }
       }
     }, 2500)
-  }, [updateAgent, setItinerary, setPlanId, setComplete, stopPolling])
+  }, [updateAgent, setItinerary, setPlanId, setComplete, stopPolling, runSynthesisStream])
 
   const runPlanning = useCallback(async (
     params: {
@@ -305,56 +416,72 @@ export function useHomeFlow() {
 
   /* ─────────────────────────────────────────────────────────
      页面加载：从 DB 恢复状态
-     - pending → 从 DB 取完整 plan（含 planning_params）重跑
-     - done    → 使用 hydrate() 恢复 itinerary
+     - pending → 恢复表单 + 继续轮询规划进度
+     - 其他状态 → 仅恢复表单填写内容（不进入规划流程）
   ───────────────────────────────────────────────────────── */
   useEffect(() => {
     const deviceId = getDeviceId()
     if (!deviceId) return
 
-    fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}`)
+    fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=1&limit=1`)
       .then((r) => r.ok ? r.json() : null)
       .then(async (data) => {
         if (!data?.plans?.length) return
         const latest = data.plans[0]
 
-        if (latest.status === 'pending') {
-          const detail = await fetch(`/api/plans/${latest.id}`).then((r) => r.ok ? r.json() : null)
-          const pp = detail?.plan?.planning_params
-          if (pp) {
-            // 恢复已完成的 agent 进度到 UI
-            const progress = detail?.plan?.agent_progress as Record<string, { status: string; preview: string }> | null
-            if (progress) {
-              Object.entries(progress).forEach(([agentId, state]) => {
-                if (state.status === 'done') {
-                  updateAgent(agentId as AgentId, { status: 'done', progress: 100, message: '✓ 完成', preview: state.preview ?? '' })
-                } else if (state.status === 'running') {
-                  updateAgent(agentId as AgentId, { status: 'running', progress: 0, message: 'AI 处理中...' })
-                }
-              })
-            } else {
-              // 无进度记录，所有 agent 标记为 running
-              const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
-              agentIds.forEach((id) => updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' }))
-            }
-            activePlanId = latest.id
-            dispatch({ type: 'START_PLANNING' })
-            // 只轮询，不重新发起后台任务（后台已经在跑）
-            startPollingForPlan(latest.id)
+        // 取完整 plan 拿 planning_params
+        const detail = await fetch(`/api/plans/${latest.id}`).then((r) => r.ok ? r.json() : null)
+        const pp = detail?.plan?.planning_params as Record<string, unknown> | null | undefined
+
+        // ── 恢复表单填写内容（所有状态通用）──
+        if (pp) {
+          // 城市：优先用存储的完整对象，fallback 用 code 反查
+          const originCity      = (pp.origin      as import('@/lib/stores/searchStore').CityOption | null) ?? findCityByCode((pp.originCode as string) ?? '') ?? null
+          const destinationCity = (pp.destination as import('@/lib/stores/searchStore').CityOption | null) ?? findCityByCode((pp.destinationCode as string) ?? '') ?? null
+
+          restoreSearchParams({
+            origin:        originCity,
+            destination:   destinationCity,
+            startDate:     (pp.startDate     as string) || '',
+            endDate:       (pp.endDate       as string) || '',
+            prompt:        (pp.prompt        as string) || '',
+            travelers:     (pp.travelers     as number) ?? 1,
+            hotelPOI:      (pp.hotelPOI      as import('@/lib/stores/searchStore').PlacePOI | null) ?? null,
+            mustVisit:     (pp.mustVisit     as import('@/lib/stores/searchStore').PlacePOI[]) ?? [],
+            mustAvoid:     (pp.mustAvoid     as import('@/lib/stores/searchStore').PlacePOI[]) ?? [],
+            arrivalTime:   (pp.arrivalTime   as string) || '',
+            departureTime: (pp.departureTime as string) || '',
+          })
+        }
+
+        // ── pending：继续规划 ──
+        if (latest.status === 'pending' && pp) {
+          const progress = detail?.plan?.agent_progress as Record<string, { status: string; preview: string }> | null
+          if (progress) {
+            Object.entries(progress).forEach(([agentId, state]) => {
+              if (state.status === 'done') {
+                updateAgent(agentId as AgentId, { status: 'done', progress: 100, message: '✓ 完成', preview: state.preview ?? '' })
+              } else if (state.status === 'running') {
+                updateAgent(agentId as AgentId, { status: 'running', progress: 0, message: 'AI 处理中...' })
+              }
+            })
           } else {
+            const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
+            agentIds.forEach((id) => updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' }))
+          }
+          activePlanId = latest.id
+          dispatch({ type: 'START_PLANNING' })
+          startPollingForPlan(latest.id)
+        } else if (!pp) {
+          // 无 planning_params 且 pending → 标记 error
+          if (latest.status === 'pending') {
             fetch(`/api/plans/${latest.id}`, {
               method: 'PATCH', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: 'error' }),
             }).catch(() => {})
           }
-        } else if (latest.status === 'interrupted') {
-          // 用户主动中断，不恢复，直接回到表单
-          return
-        } else if (latest.status === 'done') {
-          // 使用 hydrate() 恢复已完成的行程
-          await hydrateItinerary(latest.id)
-          dispatch({ type: 'PLANNING_DONE' })
         }
+        // done / interrupted / error → 只恢复表单，不进入规划流程
       })
       .catch(() => { /* 静默失败 */ })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,15 +489,22 @@ export function useHomeFlow() {
 
   /* ── 步骤 1：生成 Prompt 预览 ── */
   const generatePromptPreview = useCallback(async (params: {
-    originCode:       string
-    destinationCode:  string
-    startDate:        string
-    endDate:          string
-    userPrompt:       string
-    hotelName?:       string
-    hotelAddress?:    string
-    mustVisitNames?:  string[]
-    mustAvoidNames?:  string[]
+    originCode:          string
+    destinationCode:     string
+    startDate:           string
+    endDate:             string
+    userPrompt:          string
+    hotelName?:          string
+    hotelAddress?:       string
+    mustVisitNames?:     string[]
+    mustAvoidNames?:     string[]
+    originAirportName?:  string
+    originAirportCode?:  string
+    destAirportName?:    string
+    destAirportCode?:    string
+    arrivalTime?:        string
+    departureTime?:      string
+    travelers?:          number
   }) => {
     dispatch({ type: 'START_GENERATING' })
     abortRef.current = new AbortController()
@@ -411,19 +545,39 @@ export function useHomeFlow() {
     startDate:       string
     endDate:         string
     finalPrompt:     string
+    travelers?:      number
   }) => {
     clearItinerary()
     resetAgents()
+    synthStreamActiveRef.current = false
 
-    // 立即在 DB 创建 pending 记录（含规划参数，用于刷新恢复）
+    // 立即在 DB 创建 pending 记录（含完整表单参数，用于刷新恢复）
     const deviceId = getDeviceId()
     let planId = `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+    // 读取完整 searchStore params，一并存入 planningParams
+    const searchParams = useSearchStore.getState().params
 
     if (deviceId) {
       try {
         const res = await fetch('/api/plans', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId, status: 'pending', planningParams: params }),
+          body: JSON.stringify({
+            deviceId,
+            status: 'pending',
+            planningParams: {
+              ...params,
+              // 完整表单字段（城市对象、机场、航班时间、酒店、必经地点等）
+              origin:        searchParams.origin,
+              destination:   searchParams.destination,
+              prompt:        searchParams.prompt,
+              hotelPOI:      searchParams.hotelPOI,
+              mustVisit:     searchParams.mustVisit,
+              mustAvoid:     searchParams.mustAvoid,
+              arrivalTime:   searchParams.arrivalTime,
+              departureTime: searchParams.departureTime,
+            },
+          }),
         })
         if (res.ok) {
           const { id } = await res.json()
@@ -437,13 +591,15 @@ export function useHomeFlow() {
     await runPlanning(params, planId)
   }, [clearItinerary, resetAgents, runPlanning])
 
-  /* ── 中断生成（planning 步骤中）── */
+  /* ── 中断生成（planning 步骤中）→ 回到 prompt-preview ── */
   const interrupt = useCallback(() => {
     abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    synthStreamActiveRef.current = false
     stopPolling()
-    dispatch({ type: 'RESET' })
-    clearItinerary()
     resetAgents()
+    // 不清 itinerary / finalPrompt，回到预览让用户重新确认或修改
+    dispatch({ type: 'INTERRUPT_TO_PREVIEW' })
     if (activePlanId) {
       fetch(`/api/plans/${activePlanId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -451,11 +607,13 @@ export function useHomeFlow() {
       }).catch(() => {})
       activePlanId = null
     }
-  }, [clearItinerary, resetAgents, stopPolling])
+  }, [resetAgents, stopPolling])
 
   /* ── 返回重新规划（done/form 步骤）── */
   const goBack = useCallback(() => {
     abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    synthStreamActiveRef.current = false
     stopPolling()
     dispatch({ type: 'RESET' })
     clearItinerary()
@@ -471,6 +629,7 @@ export function useHomeFlow() {
 
   /* ── 生成失败后重试（保留表单数据，只重置步骤）── */
   const retryAfterFailure = useCallback(() => {
+    synthStreamActiveRef.current = false
     stopPolling()
     resetAgents()
     clearItinerary()

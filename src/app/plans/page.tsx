@@ -3,14 +3,15 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
 import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
-   /plans — 已保存的旅行计划列表（Supabase）
-   Saved travel plans list from Supabase
+   /plans — 已保存的旅行计划列表（Supabase）分页版
    ============================================================ */
+
+const PAGE_SIZE = 10
 
 interface PlanRow {
   id:          string
@@ -31,17 +32,23 @@ export default function PlansPage() {
   const [error, setError]           = useState<string | null>(null)
   const [confirmDelete, setConfirm] = useState<string | null>(null)
   const [deleting, setDeleting]     = useState<string | null>(null)
+  const [page, setPage]             = useState(1)
+  const [total, setTotal]           = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const fetchPlans = useCallback(async () => {
+  const fetchPlans = useCallback(async (p = 1) => {
     setLoading(true)
     setError(null)
     const deviceId = getDeviceId()
     if (!deviceId) { setLoading(false); return }
     try {
-      const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}`)
+      const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=${p}&limit=${PAGE_SIZE}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setPlans(data.plans ?? [])
+      setTotal(data.total ?? 0)
+      setTotalPages(data.totalPages ?? 1)
+      setPage(p)
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载失败')
     } finally {
@@ -49,7 +56,7 @@ export default function PlansPage() {
     }
   }, [])
 
-  useEffect(() => { fetchPlans() }, [fetchPlans])
+  useEffect(() => { fetchPlans(1) }, [fetchPlans])
 
   const handleDelete = async (id: string) => {
     if (confirmDelete !== id) {
@@ -61,12 +68,19 @@ export default function PlansPage() {
     const deviceId = getDeviceId()
     try {
       await fetch(`/api/plans/${id}?deviceId=${encodeURIComponent(deviceId)}`, { method: 'DELETE' })
-      setPlans((p) => p.filter((x) => x.id !== id))
+      // 删除后刷新当前页（若当前页变空则回上一页）
+      const newTotal = total - 1
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE))
+      const targetPage = page > newTotalPages ? newTotalPages : page
+      fetchPlans(targetPage)
     } finally {
       setDeleting(null)
       setConfirm(null)
     }
   }
+
+  const from = (page - 1) * PAGE_SIZE + 1
+  const to   = Math.min(page * PAGE_SIZE, total)
 
   return (
     <main className="relative min-h-screen" style={{ background: '#F8FAFF' }}>
@@ -86,13 +100,13 @@ export default function PlansPage() {
             <div>
               <h1 className="text-xl font-bold" style={{ color: '#0F172A' }}>我的计划</h1>
               <p className="text-xs mt-0.5" style={{ color: '#94A3B8' }}>
-                {loading ? '加载中...' : plans.length > 0 ? `共 ${plans.length} 个已保存的行程` : '还没有保存的计划'}
+                {loading ? '加载中...' : total > 0 ? `共 ${total} 个行程，第 ${from}–${to} 条` : '还没有保存的计划'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={fetchPlans}
+              onClick={() => fetchPlans(page)}
               className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:bg-white"
               style={{ border: '1px solid #E5E7EB', color: '#64748B' }}
               aria-label="刷新"
@@ -127,7 +141,7 @@ export default function PlansPage() {
                 {error}。请检查 Supabase 配置并确保 plans 表已创建。
               </p>
             </div>
-            <button onClick={fetchPlans} className="ml-auto text-xs font-medium" style={{ color: '#2563EB' }}>
+            <button onClick={() => fetchPlans(page)} className="ml-auto text-xs font-medium" style={{ color: '#2563EB' }}>
               重试
             </button>
           </div>
@@ -136,27 +150,24 @@ export default function PlansPage() {
         {/* 加载骨架 */}
         {loading && !error && (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
               <div
                 key={i}
                 className="rounded-lg p-5"
                 style={{
                   background: '#FFFFFF',
                   border: '1px solid #E5E7EB',
-                  animation: `skeleton-pulse 1.6s ease-in-out ${i * 0.15}s infinite`,
+                  animation: `skeleton-pulse 1.6s ease-in-out ${i * 0.08}s infinite`,
                 }}
               >
-                {/* 标题行 */}
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="h-5 rounded" style={{ width: `${45 + i * 12}%`, background: '#F1F5F9' }} />
+                  <div className="h-5 rounded" style={{ width: `${45 + (i % 3) * 12}%`, background: '#F1F5F9' }} />
                   <div className="h-4 rounded shrink-0" style={{ width: 64, background: '#F1F5F9' }} />
                 </div>
-                {/* 摘要 */}
                 <div className="space-y-2 mb-4">
                   <div className="h-3.5 rounded" style={{ width: '100%', background: '#F1F5F9' }} />
                   <div className="h-3.5 rounded" style={{ width: '72%', background: '#F1F5F9' }} />
                 </div>
-                {/* 标签 */}
                 <div className="flex gap-3">
                   <div className="h-3.5 rounded" style={{ width: 48, background: '#EFF6FF' }} />
                   <div className="h-3.5 rounded" style={{ width: 36, background: '#EFF6FF' }} />
@@ -185,9 +196,7 @@ export default function PlansPage() {
             </div>
             <div className="text-center">
               <p className="font-medium" style={{ color: '#475569' }}>还没有保存的计划</p>
-              <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
-                生成行程后会自动保存到这里
-              </p>
+              <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>生成行程后会自动保存到这里</p>
             </div>
             <Link href="/"
               className="mt-2 px-5 py-2.5 rounded-lg text-sm font-medium"
@@ -227,15 +236,11 @@ export default function PlansPage() {
                     >
                       <Link href={`/plans/${plan.id}`} className="block p-5">
                         <div className="flex items-start justify-between gap-3 mb-2">
-                          <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>
-                            {plan.title}
-                          </h2>
+                          <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>{plan.title}</h2>
                           <span className="shrink-0 text-xs" style={{ color: '#94A3B8' }}>{date}</span>
                         </div>
                         {plan.summary && (
-                          <p className="text-sm line-clamp-2 mb-3" style={{ color: '#64748B' }}>
-                            {plan.summary}
-                          </p>
+                          <p className="text-sm line-clamp-2 mb-3" style={{ color: '#64748B' }}>{plan.summary}</p>
                         )}
                         <div className="flex flex-wrap gap-4">
                           {plan.destination && (
@@ -282,6 +287,58 @@ export default function PlansPage() {
                 )
               })}
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* 分页 */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <button
+              onClick={() => fetchPlans(page - 1)}
+              disabled={page <= 1}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ border: '1px solid #E5E7EB', color: '#64748B', background: '#FFFFFF' }}
+            >
+              <ChevronLeft size={14} />
+              上一页
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                // 只显示：第1页、最后一页、当前页前后各1页，其余用省略号
+                const show = p === 1 || p === totalPages || Math.abs(p - page) <= 1
+                const showEllipsisBefore = p === page - 2 && page - 2 > 1
+                const showEllipsisAfter  = p === page + 2 && page + 2 < totalPages
+                if (showEllipsisBefore || showEllipsisAfter) {
+                  return <span key={p} className="px-1 text-xs" style={{ color: '#CBD5E1' }}>···</span>
+                }
+                if (!show) return null
+                return (
+                  <button
+                    key={p}
+                    onClick={() => fetchPlans(p)}
+                    className="w-8 h-8 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      background: p === page ? '#2563EB' : '#FFFFFF',
+                      color:      p === page ? '#FFFFFF' : '#64748B',
+                      border:     `1px solid ${p === page ? '#2563EB' : '#E5E7EB'}`,
+                    }}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => fetchPlans(page + 1)}
+              disabled={page >= totalPages}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ border: '1px solid #E5E7EB', color: '#64748B', background: '#FFFFFF' }}
+            >
+              下一页
+              <ChevronRight size={14} />
+            </button>
           </div>
         )}
       </div>
