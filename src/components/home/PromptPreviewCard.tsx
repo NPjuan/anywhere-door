@@ -129,10 +129,11 @@ export const PromptPreviewCard = memo(({
               type="button"
               onClick={onBack}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm transition-all"
               style={{
                 background: '#FFFFFF',
                 border: '1px solid #E5E7EB',
+                borderRadius: 8,
                 color: '#6B7280',
                 cursor: isGenerating ? 'not-allowed' : 'pointer',
                 opacity: isGenerating ? 0.5 : 1,
@@ -148,7 +149,7 @@ export const PromptPreviewCard = memo(({
               type="button"
               onClick={onConfirm}
               disabled={isGenerating || !prompt.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition-all"
               style={{
                 background:
                   !isGenerating && prompt.trim()
@@ -157,6 +158,7 @@ export const PromptPreviewCard = memo(({
                 color:
                   !isGenerating && prompt.trim() ? '#FFFFFF' : '#9CA3AF',
                 border: 'none',
+                borderRadius: 8,
                 boxShadow:
                   !isGenerating && prompt.trim()
                     ? '0 4px 12px rgba(37,99,235,0.25)'
