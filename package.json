@@ -15,6 +15,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.102.0",
     "@tanstack/react-query": "^5.96.1",
+    "@vercel/speed-insights": "^2.0.0",
     "@zumer/snapdom": "^2.7.0",
     "ai": "^6.0.142",
     "antd": "^6.3.5",
