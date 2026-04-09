@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             {children}
           </div>
         </AntdRegistry>
+        <Analytics />
         <SpeedInsights />
       </body>
     </html>
