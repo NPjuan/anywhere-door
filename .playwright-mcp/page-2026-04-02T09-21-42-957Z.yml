@@ -1,0 +1,43 @@
+- generic [ref=e3]:
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - img "eg" [ref=e9]
+      - separator [ref=e10]
+      - img [ref=e11]
+      - text: Devops
+    - menu [ref=e12]:
+      - menuitem "机器人小助手" [ref=e13] [cursor=pointer]
+      - menuitem "效能工具" [ref=e14] [cursor=pointer]
+      - menuitem "广告探查" [ref=e15] [cursor=pointer]
+      - menuitem "欢迎：ekkopan" [ref=e16] [cursor=pointer]
+      - menuitem "问题反馈" [ref=e17] [cursor=pointer]:
+        - link "问题反馈" [ref=e18]:
+          - /url: https://doc.weixin.qq.com/sheet/e3_AIcAYAbdAFwNFLAki2qR46fnR2gdp?scode=AJEAIQdfAAoy7yVFcjAboALgbSALs&tab=gjrnlg
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - menu [ref=e24]:
+        - menuitem "广告数据查询" [ref=e25] [cursor=pointer]
+        - menuitem "xml数据查询" [ref=e26]:
+          - generic [ref=e28] [cursor=pointer]: xml数据查询
+        - menuitem "kv数据查询" [ref=e29]:
+          - generic [ref=e31] [cursor=pointer]: kv数据查询
+        - menuitem "广告主白名单查询" [ref=e32] [cursor=pointer]
+    - main [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e38]: stringkv查询
+          - generic [ref=e40]: "使用次数: 0"
+        - generic [ref=e43]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: "环境:"
+            - combobox [ref=e51] [cursor=pointer]:
+              - generic "测试环境" [ref=e53]
+              - 'generic "icon: down" [ref=e55]':
+                - img [ref=e56]
+          - generic [ref=e59]:
+            - generic [ref=e60]: "key:"
+            - textbox [ref=e64]
+          - button "查 询" [ref=e70] [cursor=pointer]:
+            - generic: 查 询
+          - button "历史记录" [ref=e76] [cursor=pointer]:
+            - generic: 历史记录

@@ -1,0 +1,254 @@
+@import "tailwindcss";
+
+/* ============================================================
+   任意门设计 Token / Anywhere Door Design Tokens
+   风格 Style: Glassmorphism + Spatial UI（蓝天自由感 Sky Freedom）
+   来源 Source: ui-ux-pro-max → Glassmorphism + Spatial UI + Travel/Tourism colors
+   字体 Font: Inter（Spatial Clear — glassmorphism 专属推荐）
+   ============================================================ */
+
+@theme inline {
+  /* --- 品牌色 / Brand Colors ---
+     来源: ui-ux-pro-max Travel/Tourism 色板          */
+  --color-primary:        #0EA5E9;  /* 天蓝 / Sky blue */
+  --color-primary-hover:  #0284C7;  /* 深天蓝 hover */
+  --color-secondary:      #38BDF8;  /* 浅天蓝 / Light sky blue */
+
+  /* --- 天空背景色 / Sky Background Colors ---
+     来源: ui-ux-pro-max Travel/Tourism + Airline 色板 */
+  --color-sky-top:        #BAE6FD;  /* 天空顶部浅蓝 / Sky top light blue */
+  --color-sky-mid:        #E0F2FE;  /* 天空中部 / Sky middle */
+  --color-sky-bottom:     #F0F9FF;  /* 天空底部近白 / Sky bottom near-white */
+  --color-bg-base:        #F0F9FF;  /* 页面基础背景 / Page base background */
+
+  /* --- 玻璃态 Token / Glassmorphism Tokens ---
+     来源: ui-ux-pro-max Glassmorphism + Spatial UI
+     规格: backdrop-filter blur(15px), rgba(255,255,255,0.15-0.25) */
+  --glass-bg:             rgba(255, 255, 255, 0.20);  /* 标准玻璃背景 */
+  --glass-bg-strong:      rgba(255, 255, 255, 0.40);  /* 加强玻璃（搜索面板）*/
+  --glass-blur:           15px;   /* skill: blur 10-20px */
+  --glass-saturate:       180%;   /* skill: saturate for vibrancy */
+  --glass-border:         rgba(255, 255, 255, 0.35);  /* 玻璃边框 */
+  --glass-border-strong:  rgba(255, 255, 255, 0.60);  /* 加强边框 */
+  --glass-shadow:         0 8px 32px rgba(14, 165, 233, 0.12);  /* skill: depth shadow */
+
+  /* --- CTA 行动色 / CTA Color --- */
+  --color-cta:            #F97316;  /* 探险橙 / Adventure orange */
+  --color-cta-hover:      #EA6C0A;
+
+  /* --- 旅行风格主题色 / Travel Style Theme Colors --- */
+  --color-style-photography: #F59E0B;
+  --color-style-foodie:      #EF4444;
+  --color-style-adventure:   #10B981;
+  --color-style-culture:     #8B5CF6;
+  --color-style-relaxation:  #06B6D4;
+
+  /* --- 文字色 / Text Colors --- */
+  --color-text:           #0C4A6E;  /* skill: Travel/Tourism text */
+  --color-text-muted:     #475569;  /* Slate-600，最低 4.5:1 对比度 */
+  --color-text-light:     #94A3B8;  /* 仅用于亮色背景提示文字 */
+
+  /* --- 语义色 / Semantic --- */
+  --color-success:        #10B981;
+  --color-warning:        #F59E0B;
+  --color-error:          #EF4444;
+  --color-info:           #38BDF8;
+
+  /* --- 边框 / Borders --- */
+  --color-border:         #E0F2FE;
+  --color-border-strong:  #BAE6FD;
+
+  /* --- 字体 / Fonts ---
+     来源: ui-ux-pro-max → "Spatial Clear" Inter
+     "Optimized for readability on dynamic backgrounds" */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'Fira Code', 'Courier New', monospace;
+
+  /* --- 圆角 / Border Radius ---
+     skill Spatial UI: border-radius 24px for glass panels */
+  --radius-sm:     6px;
+  --radius-md:     12px;
+  --radius-lg:     20px;
+  --radius-xl:     24px;   /* skill Spatial UI 推荐值 */
+  --radius-2xl:    32px;
+  --radius-portal: 50%;
+
+  /* --- 阴影 / Shadows ---
+     skill: "0 8px 32px rgba(0,0,0,0.1)" for glass depth */
+  --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md:     0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg:     0 10px 40px rgba(0, 0, 0, 0.10);
+  --shadow-glass:  0 8px 32px rgba(14, 165, 233, 0.12),
+                   0 2px 8px rgba(255, 255, 255, 0.8) inset;
+  --shadow-portal: 0 0 40px rgba(14, 165, 233, 0.35),
+                   0 0 80px rgba(56, 189, 248, 0.15);
+  --shadow-card:   0 4px 20px rgba(14, 165, 233, 0.08);
+
+  /* --- 动画时长 / Animation Durations ---
+     skill: "200-300ms smooth" */
+  --duration-fast:   150ms;
+  --duration-base:   250ms;   /* skill 推荐 200-300ms */
+  --duration-slow:   400ms;
+  --duration-portal: 800ms;
+
+  /* --- 动画曲线 / Easing --- */
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-portal:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:  cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- Z-index 层级 / Z-index Scale --- */
+  --z-base:    10;
+  --z-overlay: 20;
+  --z-modal:   30;
+  --z-toast:   40;
+  --z-portal:  50;
+
+  /* --- 动画（仅加载指示器 + 蓝天背景）
+     Rule: infinite only for loading + sky background ambient */
+  --animate-shimmer:       shimmer 2s linear infinite;
+  --animate-sky-drift:     skyDrift 20s ease-in-out infinite alternate;
+  --animate-door-open:     doorOpen 0.8s var(--ease-portal) forwards;
+  --animate-portal-expand: portalExpand 0.8s var(--ease-portal) forwards;
+  --animate-ripple:        ripple 0.6s ease-out forwards;
+  --animate-fade-in:       fadeIn 0.3s ease forwards;
+  --animate-slide-up:      slideUp 0.35s var(--ease-portal) forwards;
+  --animate-scale-in:      scaleIn 0.3s var(--ease-bounce) forwards;
+}
+
+/* ============================================================
+   关键帧 / Keyframes
+   规则: infinite 仅限骨架屏 + 天空环境动效
+   Rule: infinite only for skeleton + sky ambient
+   ============================================================ */
+
+/* 骨架屏 shimmer（加载指示器）/ Skeleton shimmer (loading only) */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 蓝天云朵缓漂（背景环境动效）— 幅度极小，更丝滑
+   Tiny movement amplitude for silky smooth sky drift */
+@keyframes skyDrift {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  25%  { transform: translate(0.4%, -0.3%) scale(1.003); }
+  50%  { transform: translate(0.8%, -0.5%) scale(1.005); }
+  75%  { transform: translate(0.4%, -0.2%) scale(1.003); }
+  100% { transform: translate(0%, 0%) scale(1); }
+}
+
+/* 传送门开启（一次性）/ Portal open (one-shot) */
+@keyframes doorOpen {
+  0%   { transform: scaleX(0); opacity: 0; }
+  60%  { transform: scaleX(1.05); }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+
+/* 全屏扩展（一次性）/ Full-screen expand (one-shot) */
+@keyframes portalExpand {
+  0%   { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+
+/* 波纹（一次性交互反馈）/ Ripple (one-shot interaction feedback) */
+@keyframes ripple {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* 进场动画（一次性）/ Entrance animations (one-shot) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ============================================================
+   基础样式 / Base Styles
+   ============================================================ */
+
+:root {
+  color-scheme: light;   /* 本项目固定亮色模式 / This project uses light mode */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- 无障碍：减少动画 / Accessibility: Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   工具类 / Utility Classes
+   ============================================================ */
+
+/* 玻璃态卡片 / Glassmorphism card
+   来源: ui-ux-pro-max — backdrop-filter blur(15px), rgba 15-30%, border 1px */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-glass);
+}
+
+/* 加强玻璃态（搜索面板专用）/ Strong glass (search panel only) */
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-glass);
+}
+
+/* 传送门光晕 / Portal glow */
+.portal-glow {
+  box-shadow: var(--shadow-portal);
+}
+
+/* 渐变文字 / Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 骨架屏 shimmer（仅加载指示器）/ Shimmer skeleton (loading indicator only) */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(14, 165, 233, 0.06) 25%,
+    rgba(14, 165, 233, 0.16) 50%,
+    rgba(14, 165, 233, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
