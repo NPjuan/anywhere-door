@@ -6,6 +6,7 @@ import type { DayPlan, POI } from '@/lib/agents/types'
 
 /* ============================================================
    RouteMap — 高德地图 JS API v1.4.15
+   路线连接：优先用 AMap.Driving 规划真实路线，失败时降级直线
    ============================================================ */
 
 interface RouteMapProps {
@@ -26,6 +27,7 @@ interface AMapStub {
   Marker:   new (opts: object) => AMapObj
   Polyline: new (opts: object) => AMapObj
   plugin:   (names: string[], cb: () => void) => void
+  Driving:  new (opts: object) => DrivingInstance
 }
 interface AMapInstance {
   setFitView:   (markers?: AMapObj[], immediately?: boolean) => void
@@ -35,13 +37,24 @@ interface AMapInstance {
   clearMap:     () => void
 }
 interface AMapObj {
-  setMap: (m: AMapInstance) => void
+  setMap: (m: AMapInstance | null) => void
+}
+interface DrivingInstance {
+  search: (
+    origin: [number, number],
+    dest:   [number, number],
+    opts:   { waypoints?: [number, number][] },
+    cb:     (status: string, result: unknown) => void,
+  ) => void
+  setMap: (m: AMapInstance | null) => void
+  clear:  () => void
 }
 
 export function RouteMap({ dayPlan }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<AMapInstance | null>(null)
   const markersRef   = useRef<AMapObj[]>([])
+  const drivingRef   = useRef<DrivingInstance | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
 
@@ -73,6 +86,50 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
   const handleZoomOut = useCallback(() => {
     if (mapRef.current) mapRef.current.setZoom(mapRef.current.getZoom() - 1)
   }, [])
+
+  /* 降级：直线折线 */
+  const drawPolyline = useCallback((map: AMapInstance, pts: [number, number][]) => {
+    if (!window.AMap || pts.length < 2) return
+    const polyline = new window.AMap.Polyline({
+      path:          pts,
+      strokeColor:   DAY_COLOR,
+      strokeWeight:  2,
+      strokeOpacity: 0.5,
+      strokeStyle:   'dashed',
+    })
+    polyline.setMap(map)
+  }, [])
+
+  /* 用 AMap.Driving 画真实路线（origin→waypoints→dest） */
+  const drawDrivingRoute = useCallback((map: AMapInstance, pts: [number, number][]) => {
+    if (!window.AMap || pts.length < 2) return
+
+    window.AMap.plugin(['AMap.Driving'], () => {
+      if (!window.AMap) return
+
+      const driving = new window.AMap.Driving({
+        map,
+        hideMarkers:    true,   // 不显示驾车默认标记（我们自己画）
+        showTraffic:    false,
+        autoFitView:    false,
+        strokeColor:    DAY_COLOR,
+        strokeWeight:   3,
+        strokeOpacity:  0.75,
+      })
+      drivingRef.current = driving
+
+      const origin    = pts[0]
+      const dest      = pts[pts.length - 1]
+      const waypoints = pts.slice(1, -1) as [number, number][]
+
+      driving.search(origin, dest, { waypoints }, (status: string) => {
+        if (status !== 'complete') {
+          // 驾车路线失败，降级为直线
+          drawPolyline(map, pts)
+        }
+      })
+    })
+  }, [drawPolyline])
 
   useEffect(() => {
     if (!webKey || !containerRef.current) {
@@ -111,7 +168,6 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
           center,
           viewMode:     '2D',
           resizeEnable: true,
-          // 禁用默认控件（我们自己做）
           zoomEnable:   true,
           scrollWheel:  true,
         })
@@ -144,16 +200,10 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
         })
         markersRef.current = markers
 
-        /* 折线 */
-        if (pois.length > 1) {
-          const polyline = new window.AMap!.Polyline({
-            path:          pois.map((p) => [p.latLng.lng, p.latLng.lat]),
-            strokeColor:   DAY_COLOR,
-            strokeWeight:  2,
-            strokeOpacity: 0.6,
-            strokeStyle:   'solid',
-          })
-          polyline.setMap(map)
+        /* 路线：≥2个点时画真实驾车路线，失败降级直线 */
+        if (pois.length >= 2) {
+          const pts = pois.map((p): [number, number] => [p.latLng.lng, p.latLng.lat])
+          drawDrivingRoute(map, pts)
         }
 
         if (markers.length > 0) map.setFitView(markers)
@@ -170,6 +220,11 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
     return () => {
       destroyed = true
       markersRef.current = []
+      if (drivingRef.current) {
+        drivingRef.current.clear()
+        drivingRef.current.setMap(null)
+        drivingRef.current = null
+      }
       if (mapRef.current) {
         mapRef.current.destroy()
         mapRef.current = null
@@ -229,7 +284,6 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
           className="absolute bottom-4 right-3 z-10 flex flex-col gap-1"
           style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.12))' }}
         >
-          {/* 回到全局视野 */}
           <button
             onClick={handleFitView}
             title="回到全览"
@@ -244,10 +298,8 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
             <Locate size={14} />
           </button>
 
-          {/* 分隔 */}
           <div style={{ height: 4 }} />
 
-          {/* 放大 */}
           <button
             onClick={handleZoomIn}
             title="放大"
@@ -263,7 +315,6 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
             <Plus size={14} />
           </button>
 
-          {/* 缩小 */}
           <button
             onClick={handleZoomOut}
             title="缩小"

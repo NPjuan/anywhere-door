@@ -160,7 +160,7 @@ ${agentDataSection}${poiCoordsSection}
 请输出完整 FullItinerary JSON，严格遵守以下 schema：
 - days: 数组，每天包含 day(数字)、date(YYYY-MM-DD)、title(中文标题)、morning/afternoon/evening(活动数组)
 - 每个活动包含：time(HH:mm)、name、description、duration(如"2小时")、cost(可选)、transport(可选)
-- 活动的 poi 字段：如果活动名称能在「地点坐标字典」中匹配到，必须输出 poi 对象，格式为 {"id":"xxx","name":"景点名","address":"地址","category":"类型","latLng":{"lat":纬度,"lng":经度}}
+- 活动的 poi 字段：景点/餐厅/公园/博物馆等实地地点必须输出 poi，优先用「地点坐标字典」中的坐标，字典中没有的根据知识估算真实坐标（不要省略）。只有"返回酒店""休息""整理行李""前往机场"等非实地活动可以不输出 poi
 - 顶层字段：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt
 - budget 对象必须包含 low 和 high 两个数字（单位人民币），如 {"low": 2000, "high": 3500, "currency": "CNY"}`,
         })
