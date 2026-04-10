@@ -58,86 +58,66 @@ function playFreq(freq: number, duration = 0.45) {
   } catch { /* 静默 */ }
 }
 
-// 哆啦A梦中文主题曲完整版
-const Q = 400   // 四分音符 ms
-const H = 800   // 二分音符
-const E = 200   // 八分音符
-const DQ = 600  // 附点四分（Q+E）
+// 哆啦A梦（国语版，陈慧琳）
+// 简谱 1=C，参考：1113535 5653432 22247765 5554131...
+const Q = 450   // 四分音符 ms（≈133 BPM）
+const H = 900   // 二分音符
+const E = 225   // 八分音符
+
+// 1=C4 2=D4 3=E4 4=F4 5=G4 6=A4 7=B4  高八度加H前缀
+const s: Record<string, number> = {
+  C4: NOTE_FREQS.C4, D4: NOTE_FREQS.D4, E4: NOTE_FREQS.E4, F4: NOTE_FREQS.F4,
+  G4: NOTE_FREQS.G4, A4: NOTE_FREQS.A4, B4: NOTE_FREQS.B4,
+  C5: NOTE_FREQS.C5, D5: NOTE_FREQS.D5, E5: NOTE_FREQS.E5, F5: NOTE_FREQS.F5,
+  G5: NOTE_FREQS.G5,
+}
 
 const DORAEMON_SONG: { note: string; dur: number }[] = [
-  // ── 第一段 ──
-  // 每天过的都一样
-  { note: 'E4', dur: Q }, { note: 'E4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'E4', dur: Q },
-  { note: 'D4', dur: H },
-  // 偶尔会突发奇想
-  { note: 'E4', dur: Q }, { note: 'E4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'C5', dur: H },
-  // 想拥有一只神奇猫
-  { note: 'D5', dur: Q }, { note: 'C5', dur: Q },
+  // ── 主歌 A ──
+  // 心中有许多愿望（1 1 1 3 5 3 5）
+  { note: 'C4', dur: Q }, { note: 'C4', dur: E }, { note: 'C4', dur: E },
+  { note: 'E4', dur: Q }, { note: 'G4', dur: Q }, { note: 'E4', dur: Q }, { note: 'G4', dur: H },
+  // 能够实现有多棒（5 6 5 3 4 3 2）
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'F4', dur: Q }, { note: 'E4', dur: Q }, { note: 'D4', dur: H },
+  // 拥有一只神奇猫（2 2 2 4 7 7 6 5）
+  { note: 'D4', dur: Q }, { note: 'D4', dur: E }, { note: 'D4', dur: E },
+  { note: 'F4', dur: Q }, { note: 'B4', dur: Q }, { note: 'B4', dur: Q },
   { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'A4', dur: Q }, { note: 'C5', dur: Q },
-  { note: 'G4', dur: H },
-  // 给你带来好运气
-  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
-  { note: 'C4', dur: H },
+  // 随时帮忙真高兴（5 5 5 4 i3 1̇，1̇=C5）
+  { note: 'G4', dur: Q }, { note: 'G4', dur: E }, { note: 'G4', dur: E },
+  { note: 'F4', dur: Q }, { note: 'C5', dur: Q }, { note: 'E4', dur: Q }, { note: 'C5', dur: H },
 
-  // ── 第二段 ──
-  // 叮叮当当叮叮当（过渡）
-  { note: 'G4', dur: E }, { note: 'G4', dur: E },
+  // ── 主歌 B（重复旋律）──
+  // 心中有许多愿望
+  { note: 'C4', dur: Q }, { note: 'C4', dur: E }, { note: 'C4', dur: E },
+  { note: 'E4', dur: Q }, { note: 'G4', dur: Q }, { note: 'E4', dur: Q }, { note: 'G4', dur: H },
+  // 每天都开心相伴（5 6 5 3 4 3 2）
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'F4', dur: Q }, { note: 'E4', dur: Q }, { note: 'D4', dur: H },
+  // 2 2 2 4 7 7 6 5
+  { note: 'D4', dur: Q }, { note: 'D4', dur: E }, { note: 'D4', dur: E },
+  { note: 'F4', dur: Q }, { note: 'B4', dur: Q }, { note: 'B4', dur: Q },
   { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'F4', dur: Q }, { note: 'E4', dur: Q },
-  { note: 'E4', dur: H },
-  // 神奇口袋摸一摸
-  { note: 'E4', dur: Q }, { note: 'F4', dur: Q },
-  { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
-  { note: 'C4', dur: Q }, { note: 'D4', dur: Q },
-  { note: 'E4', dur: H },
-  // 什么宝贝都有
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'C5', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'E4', dur: Q },
-  { note: 'G4', dur: H },
-  // 随时随地帮助你
-  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
-  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'C4', dur: H },
+  // 5 5 5 4 C5 E4 C5
+  { note: 'G4', dur: Q }, { note: 'G4', dur: E }, { note: 'G4', dur: E },
+  { note: 'F4', dur: Q }, { note: 'C5', dur: Q }, { note: 'E4', dur: Q }, { note: 'C5', dur: H },
 
   // ── 副歌 ──
-  // 哆啦A梦，哆啦A梦
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'C5', dur: E }, { note: 'D5', dur: E }, { note: 'C5', dur: Q },
-  { note: 'A4', dur: H },
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'C5', dur: E }, { note: 'D5', dur: E }, { note: 'E5', dur: Q },
-  { note: 'D5', dur: H },
-  // 是我的好朋友
-  { note: 'C5', dur: Q }, { note: 'D5', dur: Q },
-  { note: 'C5', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'G4', dur: H },
-  // 随时随地都能帮你
-  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'A4', dur: Q }, { note: 'C5', dur: Q },
-  { note: 'D5', dur: Q }, { note: 'C5', dur: Q },
-  { note: 'A4', dur: DQ }, { note: 'G4', dur: E },
-  { note: 'C5', dur: H },
-
-  // ── 尾声 ──
-  // 哆啦A梦（收尾）
-  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
-  { note: 'C5', dur: Q }, { note: 'D5', dur: Q },
-  { note: 'E5', dur: Q }, { note: 'D5', dur: Q },
-  { note: 'C5', dur: H },
-  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
-  { note: 'C4', dur: H + Q },
+  // 哆 啦 A 梦（6 5 4 | 2 7 6 5 6 5 4）
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'F4', dur: Q },
+  { note: 'D4', dur: E }, { note: 'B4', dur: E },
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'F4', dur: H },
+  // 是我的好朋友（5 6 3 2 1）
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'E4', dur: Q },
+  { note: 'D4', dur: Q }, { note: 'C4', dur: H },
+  // 副歌第二句
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'F4', dur: Q },
+  { note: 'D4', dur: E }, { note: 'B4', dur: E },
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'G4', dur: Q }, { note: 'F4', dur: H },
+  // 结束句
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q }, { note: 'E4', dur: Q },
+  { note: 'D4', dur: Q }, { note: 'C4', dur: H + Q },
 ]
 
 const PIANO_FREQS = [
