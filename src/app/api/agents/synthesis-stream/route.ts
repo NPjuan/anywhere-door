@@ -98,8 +98,12 @@ export async function POST(req: NextRequest) {
   const departureLine = constraintLines.find(l => l.startsWith('[返程时间]'))
   const departureWarning = departureLine
     ? `\n\n🚨 返程时间特别提醒（最高优先级）：${departureLine}
-最后一天的所有活动必须在起飞时间至少2小时前结束。
-若起飞时间在凌晨（00:00-05:59），则最后一天活动最晚到前一晚22:00，严禁安排凌晨游览或在飞机起飞后有任何行程安排。`
+判断规则：
+- 凌晨起飞（00:00-05:59）：起飞当天只放"前往机场"(凌晨)，当天 afternoon=[]，evening=[]，当天绝无游览活动。前一天 evening 最后放"休息，明日凌晨出发"。
+  例：04/12 凌晨03:15起飞 → 04/12 只有 morning["凌晨01:15前往机场"]，04/11是最后一个游览日。
+- 早上起飞（06:00-11:59）：最后一天 morning 只放前往机场，afternoon=[]，evening=[]。
+- 下午起飞（12:00-17:59）：最后一天 morning 可轻松游览，afternoon 只放前往机场，evening=[]。
+- 晚上起飞（18:00-23:59）：最后一天白天正常，evening 只放前往机场。`
     : ''
 
   // 把坐标字典格式化为易读列表传给 AI
