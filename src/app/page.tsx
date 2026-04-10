@@ -173,10 +173,26 @@ export default function HomePage() {
 
   const handleRefine = () => {
     if (!refineFeedback.trim() || !params.origin || !params.destination) return;
-    const currentSummary = itinerary
-      ? `当前行程标题：${itinerary.title}\n当前行程概要：${itinerary.summary}`
+
+    // 把完整的每日行程序列化后传给 AI，让它真正知道原来规划了什么
+    const currentItineraryText = itinerary
+      ? JSON.stringify({
+          title:  itinerary.title,
+          days:   itinerary.days?.map(d => ({
+            day:   d.day,
+            date:  d.date,
+            title: d.title,
+            morning:   d.morning?.map(a => ({ time: a.time, name: a.name })),
+            afternoon: d.afternoon?.map(a => ({ time: a.time, name: a.name })),
+            evening:   d.evening?.map(a => ({ time: a.time, name: a.name })),
+          })),
+        })
       : '';
-    const refinePrompt = `${currentSummary}\n\n用户反馈调整意见：${refineFeedback.trim()}\n\n请根据以上反馈，重新规划行程。保持整体框架不变，只针对用户提出的问题进行调整。`;
+
+    const refinePrompt = currentItineraryText
+      ? `以下是当前已生成的行程方案（JSON格式）：\n${currentItineraryText}\n\n用户调整意见：${refineFeedback.trim()}\n\n请在保留原有行程框架的基础上，只针对用户提出的问题进行调整，输出完整的新行程方案。`
+      : refineFeedback.trim();
+
     setShowRefine(false);
     setRefineFeedback('');
     startPlanning({
