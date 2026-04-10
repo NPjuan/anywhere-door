@@ -94,7 +94,14 @@ export async function POST(req: NextRequest) {
     ? `\n\n⚠️ 以下约束条件必须严格遵守：\n${constraintLines.map(l => `- ${l}`).join('\n')}`
     : ''
 
-  // 标记 synthesis 进入 running
+  // 把坐标字典格式化为易读列表传给 AI
+  const poiCoordsSection = poiLatLngMap && Object.keys(poiLatLngMap).length > 0
+    ? `\n地点坐标字典（输出活动时按名字匹配并填入 poi 字段）：\n${
+        Object.entries(poiLatLngMap)
+          .map(([name, c]) => `  "${name}": { lat: ${c.lat}, lng: ${c.lng}, address: "${c.address}", category: "${c.category}" }`)
+          .join('\n')
+      }`
+    : ''
   const updatedProgress = {
     ...progress,
     synthesis: { status: 'running', preview: '' },
@@ -140,12 +147,12 @@ export async function POST(req: NextRequest) {
 出发地：${originCity}，目的地：${destCity}
 旅行时间：${startDate} 至 ${endDate}（${days}天）
 用户核心诉求：${corePrompt}${constraintSection}
-${agentDataSection}
+${agentDataSection}${poiCoordsSection}
 
 请输出完整 FullItinerary JSON，严格遵守以下 schema：
 - days: 数组，每天包含 day(数字)、date(YYYY-MM-DD)、title(中文标题)、morning/afternoon/evening(活动数组)
 - 每个活动包含：time(HH:mm)、name、description、duration(如"2小时")、cost(可选)、transport(可选)
-- 活动中若存在 poi 字段，直接从输入数据中复用（含 id、name、address、category、latLng），不要修改坐标
+- 活动的 poi 字段：如果活动名称能在「地点坐标字典」中匹配到，必须输出 poi 对象，格式为 {"id":"xxx","name":"景点名","address":"地址","category":"类型","latLng":{"lat":纬度,"lng":经度}}
 - 顶层字段：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt
 - budget 对象必须包含 low 和 high 两个数字（单位人民币），如 {"low": 2000, "high": 3500, "currency": "CNY"}`,
         })
