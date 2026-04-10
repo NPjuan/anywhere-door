@@ -171,6 +171,37 @@ ${agentDataSection}
           parsed.budget = { ...rawBudget, low: budgetLow, high: budgetHigh }
         }
 
+        // 后处理：对 synthesis 输出的行程做坐标回填
+        // AI 重新生成行程时不会保留 poi 字段，在这里按活动名字匹配补充坐标
+        if (poiLatLngMap && Object.keys(poiLatLngMap).length > 0 && Array.isArray(parsed.days)) {
+          const injectCoords = (acts: unknown[]) => acts.map((act) => {
+            const a = act as Record<string, unknown>
+            if (a.poi) return a  // 已有 poi，跳过
+            const name = a.name as string
+            if (!name) return a
+            // 精确匹配 or 模糊匹配（处理 AI 改了部分名字的情况）
+            const coords = poiLatLngMap[name]
+              ?? Object.entries(poiLatLngMap).find(([k]) => name.includes(k) || k.includes(name))?.[1]
+            if (!coords) return a
+            return {
+              ...a,
+              poi: {
+                id:       name.replace(/\s+/g, '_').toLowerCase(),
+                name,
+                address:  coords.address || '',
+                category: coords.category || 'attraction',
+                latLng:   { lat: coords.lat, lng: coords.lng },
+              },
+            }
+          })
+          parsed.days = (parsed.days as Record<string, unknown>[]).map(day => ({
+            ...day,
+            morning:   Array.isArray(day.morning)   ? injectCoords(day.morning as unknown[])   : day.morning,
+            afternoon: Array.isArray(day.afternoon) ? injectCoords(day.afternoon as unknown[]) : day.afternoon,
+            evening:   Array.isArray(day.evening)   ? injectCoords(day.evening as unknown[])   : day.evening,
+          }))
+        }
+
         const doneProg = { ...updatedProgress, synthesis: { status: 'done', preview: '' } }
         await supabase.from('plans').update({
           status:          'done',
