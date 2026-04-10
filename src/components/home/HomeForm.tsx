@@ -677,6 +677,7 @@ const DateField = memo(
       variant: 'borderless' as const,
       minuteStep: 5 as const,
       needConfirm: true,
+      suffixIcon: null,
       showNow: false,
       styles: { input: { fontSize: 12, color: '#94A3B8' } },
       popupStyle: { fontSize: 12 },
