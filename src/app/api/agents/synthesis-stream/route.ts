@@ -94,8 +94,18 @@ export async function POST(req: NextRequest) {
     ? `\n\n⚠️ 以下约束条件必须严格遵守：\n${constraintLines.map(l => `- ${l}`).join('\n')}`
     : ''
 
-  // 单独提取返程时间，在 prompt 中强调
+  // 单独提取落地时间/返程时间，在 prompt 头部强调（比 constraintSection 优先级更高）
+  const arrivalLine   = constraintLines.find(l => l.startsWith('[落地时间]'))
   const departureLine = constraintLines.find(l => l.startsWith('[返程时间]'))
+
+  const arrivalWarning = arrivalLine
+    ? `\n\n🚨 落地时间特别提醒（最高优先级）：${arrivalLine}
+判断规则：
+- 凌晨落地（00:00-05:59）：第一天只放"办理入住/休息"，morning/afternoon/evening 视落地时间决定，当晚不安排游览
+- 早上落地（06:00-11:59）：第一天 morning 为入住，afternoon 开始游览
+- 其余时间正常安排，从落地时间点之后才开始规划活动`
+    : ''
+
   const departureWarning = departureLine
     ? `\n\n🚨 返程时间特别提醒（最高优先级）：${departureLine}
 判断规则：
@@ -141,7 +151,7 @@ export async function POST(req: NextRequest) {
   const selfPlanNote = hasPriorData ? '' : `
 ⚠️ 独立规划模式：前置 Agent 均失败，你需要完全自主规划，生成真实可用的行程。
 请根据目的地、日期、用户诉求和约束条件，独立生成包含具体景点、餐厅、交通方式的完整行程。
-确保 days 数组中每天都有 morning、afternoon、evening 三个时段的活动。`
+注意：morning/afternoon/evening 可以为空数组，不要为满足结构而强行安排活动。`
 
   // 创建 SSE 流，同时把 chunk 累积起来写回 DB
   const encoder = new TextEncoder()
@@ -154,7 +164,7 @@ export async function POST(req: NextRequest) {
           model:           getAIProvider(),
           maxOutputTokens: 8000,
           system: SYNTHESIS_SYSTEM_PROMPT,
-          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${departureWarning}
+          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${arrivalWarning}${departureWarning}
 
 出发地：${originCity}，目的地：${destCity}
 旅行时间：${startDate} 至 ${endDate}（${days}天）
