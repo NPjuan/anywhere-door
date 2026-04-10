@@ -328,7 +328,7 @@ export default function HomePage() {
                     <button
                       onClick={confirmRestore}
                       className="text-xs cursor-pointer transition-opacity hover:opacity-60"
-                      style={{ color: '#CBD5E1', background: 'none', border: 'none', padding: 0 }}
+                      style={{ color: '#94A3B8', background: 'none', border: 'none', padding: 0 }}
                     >
                       点击恢复上次行程输入
                     </button>
