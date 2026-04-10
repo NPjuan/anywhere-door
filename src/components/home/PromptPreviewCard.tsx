@@ -107,7 +107,7 @@ export const PromptPreviewCard = memo(({
           <button
             type="button"
             onClick={onInterrupt}
-            className="flex items-center justify-center gap-1.5 w-full py-2 text-xs cursor-pointer transition-all"
+            className="flex items-center justify-center gap-1.5 w-full py-2 text-sm cursor-pointer transition-all"
             style={{
               background:   'transparent',
               border:       '1px solid #FECACA',
