@@ -74,12 +74,73 @@ function FooterPowered() {
       >
         {mode === 'doraemon'
           ? poweredChars.map((ch, i) => <RainbowChar key={i} char={ch} offset={i} />)
-          : <span style={{ color: '#94A3B8' }}>Powered</span>
+          : <PoweredFlash />
         }
       </span>
       {' by '}
       <PoweredByName mode={mode} />
     </motion.div>
+  )
+}
+
+/* Powered 文字：光束从左到右照过，逐字颜色连续渐变 */
+function PoweredFlash() {
+  const word = 'Powered'
+  // pos: 光束中心在字母数组中的位置（浮点，-2 = 未开始，word.length+1 = 结束）
+  const [pos, setPos] = useState(-2)
+
+  useEffect(() => {
+    let rafId = 0
+    const runSweep = () => {
+      const start    = performance.now()
+      const duration = 600
+      const from = -1.5
+      const to   = word.length + 0.5
+      const tick = (now: number) => {
+        const t = Math.min((now - start) / duration, 1)
+        setPos(from + t * (to - from))
+        if (t < 1) {
+          rafId = requestAnimationFrame(tick)
+        } else {
+          setPos(-2)
+        }
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+
+    const init = setTimeout(runSweep, 1500)
+    const loop = setInterval(runSweep, 4500)
+    return () => { clearTimeout(init); clearInterval(loop); cancelAnimationFrame(rafId) }
+  }, [])
+
+  // 每个字母颜色由到光束中心的距离决定：中心=亮蓝，1格外=浅蓝，2格外=恢复灰
+  const lerp = (a: string, b: string, t: number) => {
+    const hex = (s: string) => [
+      parseInt(s.slice(1,3),16),
+      parseInt(s.slice(3,5),16),
+      parseInt(s.slice(5,7),16),
+    ]
+    const [ar,ag,ab] = hex(a)
+    const [br,bg,bb] = hex(b)
+    const r = Math.round(ar + (br-ar)*t)
+    const g = Math.round(ag + (bg-ag)*t)
+    const bl2 = Math.round(ab + (bb-ab)*t)
+    return `rgb(${r},${g},${bl2})`
+  }
+
+  const getColor = (i: number) => {
+    const dist = Math.abs(i - pos)
+    if (dist > 2.5) return '#94A3B8'
+    const t = Math.max(0, 1 - dist / 2.5)
+    return lerp('#94A3B8', '#2563EB', t)
+  }
+
+  return (
+    <span>
+      {word.split('').map((ch, i) => (
+        <span key={i} style={{ color: getColor(i) }}>{ch}</span>
+      ))}
+    </span>
   )
 }
 
