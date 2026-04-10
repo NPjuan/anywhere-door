@@ -621,17 +621,11 @@ export function useHomeFlow() {
             { status: string; preview: string }
           > | null
 
-          // 检测是否需要重新触发后台规划：
-          // synthesis=waiting → 只需轮询，后台已完成
-          // synthesis=running/done → 只需轮询
-          // synthesis=idle/error + 有 running 的前置 agent → 后台可能还在跑，只轮询
-          // 所有前置 agent 都是 error/idle + synthesis 不是 waiting → 进程异常崩掉，需要重新触发
+          // 判断是否需要重启：
+          // orchestrate-bg 正常完成必然写 synthesis.status = 'waiting'
+          // 没有 waiting/running/done 说明后台没跑完（进程崩溃或异常中断），需要重启
           const synthStatus = progress?.synthesis?.status
-          const parallelAgents = ['poi', 'route', 'tips', 'xhs'] as const
-          const anyRunningOrDone = parallelAgents.some(id =>
-            progress?.[id]?.status === 'running' || progress?.[id]?.status === 'done'
-          )
-          const needsRestart = !anyRunningOrDone && synthStatus !== 'waiting' && synthStatus !== 'running' && synthStatus !== 'done'
+          const needsRestart = synthStatus !== 'waiting' && synthStatus !== 'running' && synthStatus !== 'done'
 
           // 恢复 UI 进度展示
           if (progress) {
