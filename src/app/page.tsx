@@ -33,6 +33,56 @@ import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
 
+type FooterMode = 'normal' | 'piano' | 'doraemon'
+
+const FOOTER_RAINBOW = ['#FF6B6B','#FF9F43','#FECA57','#1DD1A1','#54A0FF','#A29BFE','#FD79A8']
+
+function RainbowChar({ char, offset }: { char: string; offset: number }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 120)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <span style={{ color: FOOTER_RAINBOW[(tick + offset) % FOOTER_RAINBOW.length], transition: 'color 0.1s', fontWeight: 600 }}>
+      {char}
+    </span>
+  )
+}
+
+function FooterPowered() {
+  const [mode, setMode] = useState<FooterMode>('normal')
+
+  const handlePowered = () => {
+    setMode(m => m === 'normal' ? 'piano' : m === 'piano' ? 'doraemon' : 'normal')
+  }
+
+  const poweredChars = 'Powered'.split('')
+
+  return (
+    <motion.div
+      className="relative text-center py-6 text-xs select-none"
+      style={{ color: '#CBD5E1', zIndex: 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, delay: 0.6 }}
+    >
+      <span
+        onClick={handlePowered}
+        className="cursor-pointer inline-flex items-center"
+        title={mode === 'normal' ? '开启钢琴模式' : mode === 'piano' ? '开启哆啦A梦模式' : '退出'}
+      >
+        {mode === 'doraemon'
+          ? poweredChars.map((ch, i) => <RainbowChar key={i} char={ch} offset={i} />)
+          : <span style={{ color: mode === 'piano' ? '#94A3B8' : '#CBD5E1' }}>Powered</span>
+        }
+      </span>
+      {' by '}
+      <PoweredByName mode={mode} />
+    </motion.div>
+  )
+}
+
 export default function HomePage() {
   const {
     step,
@@ -715,15 +765,7 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <motion.div
-        className="relative text-center py-6 text-xs"
-        style={{ color: '#CBD5E1', zIndex: 1 }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.6 }}
-      >
-        Powered by <PoweredByName />
-      </motion.div>
+      <FooterPowered />
 
       {/* 右下角功能按钮组（垂直排列） */}
       <motion.div
