@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
    create table feedbacks (
      id         bigserial    primary key,
      device_id  text         not null,
-     email      text,
+     contact    text,
      content    text         not null,
      created_at timestamptz  not null default now()
    );
@@ -17,14 +17,14 @@ import { supabase } from '@/lib/supabase'
    ============================================================ */
 
 export async function POST(req: NextRequest) {
-  const { deviceId, email, content } = await req.json()
+  const { deviceId, contact, content } = await req.json()
 
   if (!deviceId) return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
   if (!content?.trim()) return NextResponse.json({ error: 'Missing content' }, { status: 400 })
 
   const { error } = await supabase.from('feedbacks').insert({
     device_id: deviceId,
-    email:     email?.trim() || null,
+    contact:   contact?.trim() || null,
     content:   content.trim(),
   })
 

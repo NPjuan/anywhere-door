@@ -87,7 +87,7 @@ alter table plans alter column itinerary drop not null;
 create table if not exists feedbacks (
   id         bigserial    primary key,
   device_id  text         not null,
-  email      text,
+  contact    text,                    -- 可选，邮箱/手机/微信等任意联系方式
   content    text         not null,
   created_at timestamptz  not null default now()
 );

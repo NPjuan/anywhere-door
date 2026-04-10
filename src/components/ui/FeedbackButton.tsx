@@ -11,8 +11,7 @@ import { getDeviceId } from '@/lib/deviceId'
 
 export function FeedbackButton() {
   const [open, setOpen]         = useState(false)
-  const [email, setEmail]       = useState('')
-  const [content, setContent]   = useState('')
+  const [contact, setContact]   = useState('')  const [content, setContent]   = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]         = useState(false)
   const [error, setError]       = useState('')
@@ -38,7 +37,7 @@ export function FeedbackButton() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deviceId: getDeviceId(),
-          email:    email.trim() || null,
+          contact:  contact.trim() || null,
           content:  content.trim(),
         }),
       })
@@ -49,7 +48,7 @@ export function FeedbackButton() {
         setOpen(false)
         setTimeout(() => {
           setDone(false)
-          setEmail('')
+          setContact('')
           setContent('')
         }, 300)
       }, 2500)
@@ -191,20 +190,20 @@ export function FeedbackButton() {
                       )}
                     </div>
 
-                    {/* 邮箱（可选） */}
+                    {/* 联系方式（可选） */}
                     <div>
                       <label
                         className="block text-xs font-medium mb-1.5"
                         style={{ color: '#374151' }}
                       >
-                        联系邮箱
+                        联系方式
                         <span className="ml-1 font-normal" style={{ color: '#9CA3AF' }}>（可选，方便我们回复你）</span>
                       </label>
                       <input
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="your@email.com"
+                        type="text"
+                        value={contact}
+                        onChange={e => setContact(e.target.value)}
+                        placeholder="邮箱 / 手机号 / 微信，随便留"
                         className="w-full text-sm outline-none transition-colors"
                         style={{
                           background:   '#F9FAFB',
