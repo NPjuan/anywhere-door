@@ -611,10 +611,29 @@ export function useHomeFlow() {
 
         // ── pending：继续规划 ──
         if (latest.status === 'pending' && pp) {
+          // 恢复 finalPrompt 到 state，让 PromptPreviewCard 有内容显示
+          const savedFinalPrompt = (pp.finalPrompt as string) || ''
+          if (savedFinalPrompt) {
+            dispatch({ type: 'SET_FINAL_PROMPT', prompt: savedFinalPrompt })
+          }
           const progress = detail?.plan?.agent_progress as Record<
             string,
             { status: string; preview: string }
-          > | null;
+          > | null
+
+          // 检测是否需要重新触发后台规划：
+          // synthesis=waiting → 只需轮询，后台已完成
+          // synthesis=running/done → 只需轮询
+          // synthesis=idle/error + 有 running 的前置 agent → 后台可能还在跑，只轮询
+          // 所有前置 agent 都是 error/idle + synthesis 不是 waiting → 进程异常崩掉，需要重新触发
+          const synthStatus = progress?.synthesis?.status
+          const parallelAgents = ['poi', 'route', 'tips', 'xhs'] as const
+          const anyRunningOrDone = parallelAgents.some(id =>
+            progress?.[id]?.status === 'running' || progress?.[id]?.status === 'done'
+          )
+          const needsRestart = !anyRunningOrDone && synthStatus !== 'waiting' && synthStatus !== 'running' && synthStatus !== 'done'
+
+          // 恢复 UI 进度展示
           if (progress) {
             Object.entries(progress).forEach(([agentId, state]) => {
               if (state.status === 'done') {
@@ -624,27 +643,44 @@ export function useHomeFlow() {
                   message: '✓ 完成',
                   preview: state.preview ?? '',
                 });
-              } else if (state.status === 'running') {
+              } else {
+                // running / error / idle 都标为 running，因为我们会重新触发或继续轮询
                 updateAgent(agentId as AgentId, {
                   status: 'running',
                   progress: 0,
                   message: 'AI 处理中...',
                 });
               }
-            });
+            })
           } else {
-            const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs'];
+            const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
             agentIds.forEach((id) =>
-              updateAgent(id, {
-                status: 'running',
-                progress: 0,
-                message: 'AI 处理中...',
-              })
-            );
+              updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' })
+            )
           }
-          activePlanId = latest.id;
-          dispatch({ type: 'START_PLANNING' });
-          startPollingForPlan(latest.id);
+
+          activePlanId = latest.id
+          dispatch({ type: 'START_PLANNING' })
+
+          if (needsRestart) {
+            // 进程异常中断，重新发起后台规划
+            console.warn('[useHomeFlow] Plan stuck, restarting orchestrate-bg:', latest.id)
+            fetch('/api/agents/orchestrate-bg', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                planId:          latest.id,
+                originCode:      pp.originCode      as string,
+                destinationCode: pp.destinationCode as string,
+                startDate:       pp.startDate       as string,
+                endDate:         pp.endDate         as string,
+                prompt:          savedFinalPrompt || (pp.prompt as string) || '',
+              }),
+            }).catch(() => {})
+          }
+
+          // 不管是否重启，都开始轮询（等待 synthesis waiting 信号）
+          startPollingForPlan(latest.id)
         } else if (!pp) {
           // 无 planning_params 且 pending → 标记 error
           if (latest.status === 'pending') {

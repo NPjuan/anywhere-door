@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, memo, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { ArrowLeft, Sparkles, Square } from 'lucide-react'
 
 interface PromptPreviewCardProps {
@@ -99,12 +98,9 @@ export const PromptPreviewCard = memo(({
       />
 
       {/* 底部操作栏 */}
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
+      <div
         className="flex items-center gap-2 px-5 py-3.5 border-t"
-        style={{ borderColor: '#F3F4F6', background: '#FAFBFC' }}
+        style={{ borderColor: '#F3F4F6', background: '#FAFBFC', minHeight: 56 }}
       >
         {isPlanning ? (
           /* planning 中：整行「中断生成」按钮 */
@@ -174,7 +170,7 @@ export const PromptPreviewCard = memo(({
             </button>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   )
 }, (prevProps, nextProps) => {
