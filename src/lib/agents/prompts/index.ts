@@ -72,8 +72,19 @@ export const SYNTHESIS_SYSTEM_PROMPT = `你是"任意门"AI旅行规划的最终
 - 确保各部分信息一致
 - 全程中文
 
+⚠️ days 数组结构（必须严格遵守）：
+每个 day 对象必须包含：
+  - day: 数字（1, 2, 3...）
+  - date: YYYY-MM-DD 格式日期
+  - title: 中文标题
+  - morning: 上午活动数组
+  - afternoon: 下午活动数组
+  - evening: 晚上活动数组
+每个活动对象必须包含：time(HH:mm)、name、description、duration
+禁止使用 pois[] 替代 morning/afternoon/evening 结构
+
 ⚠️ 输出格式严格要求：
 - 只输出纯 JSON，不要加任何 markdown 代码块（不要 \`\`\`json）
 - 不要在 JSON 前后加任何说明文字
 - 第一个字符必须是 {，最后一个字符必须是 }
-- days 数组中每个元素的 date 字段必须是 YYYY-MM-DD 格式（如 2026-04-09），直接从输入的每日行程中复用，禁止改为"第一天"等中文`
+- days 数组中每个元素的 date 字段必须是 YYYY-MM-DD 格式（如 2026-04-09），禁止改为"第一天"等中文`

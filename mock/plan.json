@@ -1,0 +1,345 @@
+{
+  "plan": {
+    "id": "plan-1775796757694-wougd",
+    "device_id": "dev-1775745513368-5g9bjgy8",
+    "title": "沪上三日·穿梭于童话与旧梦之间",
+    "summary": "这是一段从深圳出发的上海三日悠闲之旅，以经典与现代交融为核心体验。行程围绕外滩华尔道夫酒店展开，精心安排了迪士尼的童话狂欢与武康路的文艺漫步，节奏舒缓，确保您和朋友在轻松愉悦中感受魔都的独特魅力。",
+    "destination": "上海",
+    "start_date": "2026-04-09",
+    "end_date": "2026-04-11",
+    "days_count": 3,
+    "budget_low": 4500,
+    "budget_high": 7000,
+    "status": "done",
+    "saved_at": "2026-04-10T04:52:37.694+00:00",
+    "itinerary": {
+      "id": "shanghai_2026_0409_0411",
+      "title": "沪上三日·穿梭于童话与旧梦之间",
+      "summary": "这是一段从深圳出发的上海三日悠闲之旅，以经典与现代交融为核心体验。行程围绕外滩华尔道夫酒店展开，精心安排了迪士尼的童话狂欢与武康路的文艺漫步，节奏舒缓，确保您和朋友在轻松愉悦中感受魔都的独特魅力。",
+      "destination": "上海",
+      "origin": "深圳",
+      "startDate": "2026-04-09",
+      "endDate": "2026-04-11",
+      "userPrompt": "从深圳出发去上海三天，想体验经典与现代交融感，去迪士尼和武康路，住外滩华尔道夫酒店，节奏舒缓。",
+      "generatedAt": "2026-04-08T10:30:00Z",
+      "budget": { "low": 4500, "high": 7000, "currency": "CNY" },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-04-09",
+          "title": "抵沪·外滩初见",
+          "morning": [
+            {
+              "time": "09:15",
+              "name": "浦东国际机场（PVG）",
+              "description": "抵达上海，提取行李，乘坐地铁2号线前往市区。",
+              "duration": "1小时",
+              "cost": "地铁约¥9",
+              "transport": "地铁2号线",
+              "poi": {
+                "id": "pvg_airport",
+                "name": "浦东国际机场",
+                "address": "浦东新区迎宾大道6000号",
+                "category": "airport",
+                "latLng": { "lat": 31.1434, "lng": 121.8050 }
+              }
+            },
+            {
+              "time": "11:30",
+              "name": "上海外滩华尔道夫酒店",
+              "description": "办理入住，寄存行李，稍作休整。",
+              "duration": "1小时",
+              "cost": "酒店已预订",
+              "transport": "步行",
+              "poi": {
+                "id": "waldorf_bund",
+                "name": "上海外滩华尔道夫酒店",
+                "address": "中山东一路2号",
+                "category": "hotel",
+                "latLng": { "lat": 31.2336, "lng": 121.4897 }
+              }
+            }
+          ],
+          "afternoon": [
+            {
+              "time": "13:00",
+              "name": "午餐·豫园商圈",
+              "description": "在酒店周边或豫园商圈享用地道本帮菜或上海小吃。",
+              "duration": "1.5小时",
+              "cost": "¥60-120/人",
+              "transport": "步行",
+              "poi": null
+            },
+            {
+              "time": "14:30",
+              "name": "豫园",
+              "description": "从酒店步行即可到达，游览这座拥有四百多年历史的江南古典园林，感受闹市中的宁静。",
+              "duration": "2小时",
+              "cost": "¥40/人",
+              "transport": "步行",
+              "poi": {
+                "id": "yuyuan_garden",
+                "name": "豫园",
+                "address": "黄浦区安仁街218号",
+                "category": "attraction",
+                "latLng": { "lat": 31.2270, "lng": 121.4910 }
+              }
+            },
+            {
+              "time": "16:30",
+              "name": "外滩",
+              "description": "从豫园漫步至外滩，欣赏浦江两岸的万国建筑博览群与陆家嘴现代天际线。",
+              "duration": "2小时",
+              "cost": "免费",
+              "transport": "步行",
+              "poi": {
+                "id": "the_bund",
+                "name": "外滩",
+                "address": "黄浦区中山东一路",
+                "category": "attraction",
+                "latLng": { "lat": 31.2390, "lng": 121.4900 }
+              }
+            }
+          ],
+          "evening": [
+            {
+              "time": "18:30",
+              "name": "晚餐·外滩或南京东路",
+              "description": "在外滩或附近的南京东路选择一家餐厅享用晚餐，结束后悠闲散步回酒店。",
+              "duration": "1.5小时",
+              "cost": "¥80-150/人",
+              "transport": "步行",
+              "poi": null
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-04-10",
+          "title": "迪士尼·童话狂欢日",
+          "morning": [
+            {
+              "time": "08:30",
+              "name": "从酒店出发",
+              "description": "早餐后从酒店出发，乘坐地铁10号线转11号线至迪士尼站，预留充足交通时间。",
+              "duration": "1.5小时",
+              "cost": "地铁约¥8",
+              "transport": "地铁10号线→11号线",
+              "poi": {
+                "id": "waldorf_bund_2",
+                "name": "上海外滩华尔道夫酒店",
+                "address": "中山东一路2号",
+                "category": "hotel",
+                "latLng": { "lat": 31.2336, "lng": 121.4897 }
+              }
+            },
+            {
+              "time": "10:00",
+              "name": "上海迪士尼乐园",
+              "description": "全天游览。建议提前下载官方APP规划路线，体验创极速光轮、加勒比海盗等热门项目，观看花车巡游。",
+              "duration": "整天",
+              "cost": "门票¥719起/人",
+              "transport": "园内步行",
+              "poi": {
+                "id": "shanghai_disney",
+                "name": "上海迪士尼乐园",
+                "address": "川沙镇申迪西路753号",
+                "category": "attraction",
+                "latLng": { "lat": 31.1430, "lng": 121.6570 }
+              }
+            }
+          ],
+          "afternoon": [
+            {
+              "time": "14:00",
+              "name": "迪士尼下午游览",
+              "description": "继续探索各主题园区，下午可以体验梦幻世界、明日世界等区域，享受下午茶。",
+              "duration": "4小时",
+              "cost": "园内餐饮¥100-200",
+              "transport": "园内步行",
+              "poi": null
+            }
+          ],
+          "evening": [
+            {
+              "time": "19:30",
+              "name": "迪士尼夜间幻影秀",
+              "description": "观看夜间幻影秀，烟花配合城堡灯光秀，是全天最值得期待的时刻，提前占好位置。",
+              "duration": "1小时",
+              "cost": "含门票",
+              "transport": "步行",
+              "poi": null
+            },
+            {
+              "time": "21:30",
+              "name": "返回酒店",
+              "description": "观看完演出后乘坐地铁返回酒店休息。",
+              "duration": "1.5小时",
+              "cost": "地铁约¥8",
+              "transport": "地铁11号线→10号线",
+              "poi": {
+                "id": "waldorf_bund_3",
+                "name": "上海外滩华尔道夫酒店",
+                "address": "中山东一路2号",
+                "category": "hotel",
+                "latLng": { "lat": 31.2336, "lng": 121.4897 }
+              }
+            }
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-04-11",
+          "title": "武康路文艺漫步·返程",
+          "morning": [
+            {
+              "time": "09:00",
+              "name": "退房·行李寄存",
+              "description": "享用早餐并办理退房，行李可寄存于酒店。",
+              "duration": "1小时",
+              "cost": "免费",
+              "transport": "步行",
+              "poi": {
+                "id": "waldorf_bund_4",
+                "name": "上海外滩华尔道夫酒店",
+                "address": "中山东一路2号",
+                "category": "hotel",
+                "latLng": { "lat": 31.2336, "lng": 121.4897 }
+              }
+            },
+            {
+              "time": "10:30",
+              "name": "武康路",
+              "description": "乘坐地铁10号线至上海图书馆站，漫步武康路，欣赏武康大楼等历史老洋房，找一家特色咖啡馆小坐。",
+              "duration": "2.5小时",
+              "cost": "咖啡¥30-50",
+              "transport": "地铁10号线",
+              "poi": {
+                "id": "wukang_road",
+                "name": "武康路",
+                "address": "徐汇区武康路",
+                "category": "attraction",
+                "latLng": { "lat": 31.2070, "lng": 121.4370 }
+              }
+            }
+          ],
+          "afternoon": [
+            {
+              "time": "13:00",
+              "name": "午餐·安福路",
+              "description": "在武康路或附近的安福路、淮海中路选择一家有格调的餐厅享用午餐。",
+              "duration": "1.5小时",
+              "cost": "¥80-150/人",
+              "transport": "步行",
+              "poi": null
+            },
+            {
+              "time": "14:30",
+              "name": "淮海中路购物",
+              "description": "在淮海中路或新天地进行最后的闲逛或购物，购买伴手礼。",
+              "duration": "2小时",
+              "cost": "按需",
+              "transport": "步行",
+              "poi": null
+            },
+            {
+              "time": "16:30",
+              "name": "取回行李",
+              "description": "返回酒店取回寄存的行李，准备前往机场。",
+              "duration": "0.5小时",
+              "cost": "打车约¥60",
+              "transport": "打车",
+              "poi": {
+                "id": "waldorf_bund_5",
+                "name": "上海外滩华尔道夫酒店",
+                "address": "中山东一路2号",
+                "category": "hotel",
+                "latLng": { "lat": 31.2336, "lng": 121.4897 }
+              }
+            }
+          ],
+          "evening": [
+            {
+              "time": "17:30",
+              "name": "浦东国际机场（PVG）",
+              "description": "从酒店出发，建议乘坐地铁2号线直达或打车，务必预留至少2小时办理登机手续。航班21:20起飞。",
+              "duration": "1小时",
+              "cost": "地铁约¥9",
+              "transport": "地铁2号线",
+              "poi": {
+                "id": "pvg_airport_return",
+                "name": "浦东国际机场",
+                "address": "浦东新区迎宾大道6000号",
+                "category": "airport",
+                "latLng": { "lat": 31.1434, "lng": 121.8050 }
+              }
+            }
+          ]
+        }
+      ],
+      "xhsNotes": [
+        {
+          "title": "🏰 迪士尼攻略｜夜间幻影秀必看！",
+          "body": "一定要看晚上的幻影秀！提前占好位置，灯光烟花下的城堡美到窒息。热门项目建议早上第一个冲创极速光轮，下午排加勒比海盗，火鸡腿和米奇头冰淇淋别错过！",
+          "tags": ["上海迪士尼", "魔都打卡", "迪士尼攻略", "上海旅游"],
+          "noteType": "tips"
+        },
+        {
+          "title": "📸 武康路拍照攻略｜老上海文艺范",
+          "body": "武康大楼是必打卡地，建议在马路斜对角拍全景，梧桐树和咖啡馆窗边也超出片。推荐早上10点去，人少光线好，路边随便一家咖啡馆坐下来都是风景。",
+          "tags": ["武康路", "上海文艺", "老洋房", "打卡攻略"],
+          "noteType": "guide"
+        },
+        {
+          "title": "🚇 上海交通贴士｜地铁10号线是王道",
+          "body": "住在外滩附近超方便！地铁10号线是换乘王，去迪士尼（转11号线）、武康路（上海图书馆站）、机场（转2号线）都能搞定。强烈推荐下载Metro大都会APP规划路线。",
+          "tags": ["上海地铁", "交通攻略", "上海旅游", "省钱攻略"],
+          "noteType": "tips"
+        },
+        {
+          "title": "🛏️ 外滩华尔道夫｜夜景一流的住宿体验",
+          "body": "老楼历史感十足，步行就能到外滩和豫园，地理位置无敌。夜晚站在窗边看外滩灯光真的很美。适合喜欢慢游上海的朋友，周边美食也很多。",
+          "tags": ["外滩住宿", "华尔道夫", "上海酒店", "外滩夜景"],
+          "noteType": "review"
+        }
+      ],
+      "packingTips": [
+        "证件：身份证、机票/酒店预订确认单",
+        "衣物：4月上海早晚温差较大，建议准备薄外套、长裤和舒适步行鞋（迪士尼和武康路都需要大量步行）",
+        "电子产品：手机、充电宝（迪士尼乐园内租借可能排队）、相机",
+        "其他：晴雨伞（春季天气多变）、防晒霜、迪士尼头饰可提前购买增添氛围",
+        "APP：提前下载"上海迪士尼度假区"官方APP查看排队时间，"Metro大都会"用于乘坐地铁"
+      ],
+      "warnings": [
+        "迪士尼门票：务必提前在官方渠道购买并预约入园日期，节假日人流量大",
+        "机场交通：最后一天前往机场请预留充足时间，考虑晚高峰堵车，建议优先选择地铁2号线",
+        "酒店入住：通常下午3点后办理入住，早上抵达可先寄存行李",
+        "天气：出行前关注上海天气预报，4月多雨，携带雨伞",
+        "预算：主要花费在酒店、迪士尼门票及餐饮，请根据个人消费习惯调整"
+      ]
+    },
+    "planning_params": {
+      "origin": { "code": "SZX", "name": "深圳", "nameEn": "Shenzhen", "airport": "宝安国际机场", "country": "中国" },
+      "destination": { "code": "PVG", "name": "上海", "nameEn": "Shanghai", "airport": "浦东国际机场", "country": "中国", "selectedAirportCode": "PVG", "selectedAirportName": "浦东国际机场" },
+      "startDate": "2026-04-09",
+      "endDate": "2026-04-11",
+      "travelers": 1,
+      "arrivalTime": "09:15",
+      "departureTime": "21:20",
+      "hotelPOI": { "id": "B00155Q3SA", "lat": 31.233602, "lng": 121.489731, "name": "上海外滩华尔道夫酒店", "address": "中山东一路2号", "cityname": "上海市" },
+      "mustVisit": [
+        { "id": "B0KDJ78DYD", "lat": 31.143212, "lng": 121.660294, "name": "上海迪士尼乐园", "address": "川沙镇申迪西路753号", "cityname": "上海市" },
+        { "id": "B0IA3PHRXP", "lat": 31.209252, "lng": 121.440627, "name": "武康路", "address": "徐汇区", "cityname": "上海市" }
+      ],
+      "mustAvoid": [],
+      "prompt": ""
+    },
+    "agent_progress": {
+      "poi": { "status": "done", "preview": "豫园 · 外滩 · 武康路 · 迪士尼 · 南京东路" },
+      "route": { "status": "done", "preview": "Day1 抵沪外滩初见 → Day2 迪士尼童话狂欢 → Day3 武康路文艺漫步" },
+      "tips": { "status": "done", "preview": "带舒适步行鞋 / 提前买迪士尼票 / 雨伞" },
+      "xhs": { "status": "done", "preview": "迪士尼攻略 | 武康路拍照 | 地铁贴士" },
+      "synthesis": { "status": "done", "preview": "" }
+    }
+  }
+}

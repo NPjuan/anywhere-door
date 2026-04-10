@@ -72,6 +72,29 @@ export async function POST(req: NextRequest) {
   }
   await supabase.from('plans').update({ agent_progress: updatedProgress }).eq('id', planId)
 
+  // 检测前置 agent 数据是否有效
+  const hasRouteData  = Array.isArray(routeDays)  && routeDays.length  > 0
+  const hasPoiData    = Array.isArray(poiNames)   && poiNames.length   > 0
+  const hasTipsData   = Array.isArray(packingTips) && packingTips.length > 0
+  const hasXhsData    = Array.isArray(xhsNotes)   && xhsNotes.length   > 0
+  const hasPriorData  = hasRouteData || hasPoiData
+
+  // 根据数据质量选择 prompt 模式
+  const agentDataSection = hasPriorData
+    ? `
+推荐地点（名称列表）：${JSON.stringify(poiNames)}
+每日行程（已规划好）：${JSON.stringify(routeDays)}
+打包建议：${JSON.stringify(hasTipsData ? packingTips : [])}
+注意事项：${JSON.stringify(hasTipsData ? warnings : [])}
+小红书笔记：${JSON.stringify(hasXhsData ? xhsNotes : [])}`
+    : `
+（前置 Agent 数据不可用，请完全依靠自身知识独立规划完整行程，不要留空字段）`
+
+  const selfPlanNote = hasPriorData ? '' : `
+⚠️ 独立规划模式：前置 Agent 均失败，你需要完全自主规划，生成真实可用的行程。
+请根据目的地、日期、用户诉求和约束条件，独立生成包含具体景点、餐厅、交通方式的完整行程。
+确保 days 数组中每天都有 morning、afternoon、evening 三个时段的活动。`
+
   // 创建 SSE 流，同时把 chunk 累积起来写回 DB
   const encoder = new TextEncoder()
   let accumulated = ''
@@ -83,19 +106,19 @@ export async function POST(req: NextRequest) {
           model:           getAIProvider(),
           maxOutputTokens: 8000,
           system: SYNTHESIS_SYSTEM_PROMPT,
-          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：
+          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}
 
 出发地：${originCity}，目的地：${destCity}
 旅行时间：${startDate} 至 ${endDate}（${days}天）
 用户核心诉求：${corePrompt}${constraintSection}
+${agentDataSection}
 
-推荐地点（名称列表）：${JSON.stringify(poiNames)}
-每日行程（已规划好）：${JSON.stringify(routeDays)}
-打包建议：${JSON.stringify(packingTips)}
-注意事项：${JSON.stringify(warnings)}
-小红书笔记：${JSON.stringify(xhsNotes)}
-
-请输出完整 FullItinerary JSON，字段包括：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt，以及 budget 对象（必须包含 low 和 high 两个数字字段，单位人民币，如 {"low": 2000, "high": 3500, "currency": "CNY"}）`,
+请输出完整 FullItinerary JSON，严格遵守以下 schema：
+- days: 数组，每天包含 day(数字)、date(YYYY-MM-DD)、title(中文标题)、morning/afternoon/evening(活动数组)
+- 每个活动包含：time(HH:mm)、name、description、duration(如"2小时")、cost(可选)、transport(可选)
+- 如有坐标数据，活动中的 poi 字段包含：id、name、address、category、latLng({lat, lng})
+- 顶层字段：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt
+- budget 对象必须包含 low 和 high 两个数字（单位人民币），如 {"low": 2000, "high": 3500, "currency": "CNY"}`,
         })
 
         for await (const chunk of result.textStream) {
