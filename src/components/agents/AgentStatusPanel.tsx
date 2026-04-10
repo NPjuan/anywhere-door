@@ -109,7 +109,7 @@ function AgentRow({ agent, isLast }: { agent: AgentState; isLast: boolean }) {
           <AnimatePresence mode="wait">
             {isRun && (
               <motion.p
-                key={agent.id === 'synthesis' ? agent.message : hint}
+                key={agent.id === 'synthesis' ? agent.message : (agent.preview || hint)}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
@@ -117,7 +117,9 @@ function AgentRow({ agent, isLast }: { agent: AgentState; isLast: boolean }) {
                 className="text-xs mt-0.5 truncate"
                 style={{ color: meta.color }}
               >
-                {agent.id === 'synthesis' ? (agent.message || '整合行程数据...') : hint}
+                {agent.id === 'synthesis'
+                  ? (agent.message || '整合行程数据...')
+                  : (agent.preview || hint)}
               </motion.p>
             )}
             {isDone && agent.preview && (

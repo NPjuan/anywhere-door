@@ -77,7 +77,15 @@ async function runPlanningInBackground(
   }
 
   /* ── 阶段一：poi（route 依赖它，先跑）── */
-  await runPoiAgent({ destination: destCity, prompt, days })
+  await runPoiAgent({
+    destination: destCity,
+    prompt,
+    days,
+    onProgress: async (_partial, message) => {
+      progress.poi = { ...progress.poi, status: 'running', preview: message }
+      await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+    },
+  })
     .then(result => {
       results.poi = result
       return updateProgress('poi', { status: 'done', preview: makePreview('poi', result) })
@@ -94,8 +102,17 @@ async function runPlanningInBackground(
   })) ?? []
 
   await Promise.allSettled([
-    // route 用 poi 数据规划
-    runRoutePlanAgent({ destination: destCity, travelStyle: prompt, days, pois: poisForRoute, startDate })
+    runRoutePlanAgent({
+      destination: destCity,
+      travelStyle: prompt,
+      days,
+      pois: poisForRoute,
+      startDate,
+      onProgress: async (_partial, message) => {
+        progress.route = { ...progress.route, status: 'running', preview: message }
+        await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+      },
+    })
       .then(result => {
         results.route = result
         return updateProgress('route', { status: 'done', preview: makePreview('route', result) })
@@ -105,8 +122,15 @@ async function runPlanningInBackground(
         await updateProgress('route', { status: 'error', preview: '' })
       }),
 
-    // tips + xhs 与 route 并行（不依赖 poi 结果）
-    runContentAgent({ destination: destCity, travelStyle: prompt, days })
+    runContentAgent({
+      destination: destCity,
+      travelStyle: prompt,
+      days,
+      onProgress: async (_partial, message) => {
+        progress.tips = { ...progress.tips, status: 'running', preview: message }
+        await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+      },
+    })
       .then(result => {
         results.tips = result
         return updateProgress('tips', { status: 'done', preview: makePreview('tips', result) })
@@ -116,7 +140,15 @@ async function runPlanningInBackground(
         await updateProgress('tips', { status: 'error', preview: '' })
       }),
 
-    runXhsAgent({ destination: destCity, prompt, days })
+    runXhsAgent({
+      destination: destCity,
+      prompt,
+      days,
+      onProgress: async (_partial, message) => {
+        progress.xhs = { ...progress.xhs, status: 'running', preview: message }
+        await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+      },
+    })
       .then(result => {
         results.xhs = result
         return updateProgress('xhs', { status: 'done', preview: makePreview('xhs', result) })

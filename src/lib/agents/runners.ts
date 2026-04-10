@@ -1,4 +1,4 @@
-import { generateObject } from 'ai'
+import { streamObject } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { getAmapClient } from '@/lib/api/maps/AmapClient'
 import {
@@ -14,10 +14,11 @@ import {
   XHSAgentOutputSchema,
 } from '@/lib/agents/types'
 import type { z } from 'zod'
+import type { DeepPartial } from 'ai'
 
 /* ============================================================
    Agent 核心逻辑函数 — 直接调用，不走 HTTP
-   供 orchestrate-bg 使用，避免 Vercel 内部 HTTP 自调问题
+   使用 streamObject 实现流式进度回调
    ============================================================ */
 
 export type StyleOutput   = z.infer<typeof StyleAgentOutputSchema>
@@ -25,25 +26,39 @@ export type RouteOutput   = z.infer<typeof RoutePlanOutputSchema>
 export type ContentOutput = z.infer<typeof ContentAgentOutputSchema>
 export type XHSOutput     = z.infer<typeof XHSAgentOutputSchema>
 
+// 进度回调类型：传入当前局部对象 + 人读进度文字
+type ProgressCallback<T> = (partial: DeepPartial<T>, message: string) => void
+
+/* 节流：避免进度回调太频繁写 DB */
+function throttle<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
+  let last = 0
+  return (...args: T) => {
+    const now = Date.now()
+    if (now - last >= ms) { last = now; fn(...args) }
+  }
+}
+
 /* ── POI 推荐 Agent ── */
 export async function runPoiAgent(params: {
-  destination: string
-  prompt:      string
-  days:        number
+  destination:  string
+  prompt:       string
+  days:         number
+  onProgress?:  ProgressCallback<StyleOutput>
 }): Promise<StyleOutput> {
-  const { destination, prompt, days } = params
+  const { destination, prompt, days, onProgress } = params
 
-  // 尝试获取高德 POI，失败不中断
   let candidatePOIs: { name: string; category: string; address: string; latLng?: { lat: number; lng: number } }[] = []
   try {
     const amap = getAmapClient()
     const pois = await amap.searchPOI({ city: destination, travelStyle: 'default', pageSize: 12 })
     candidatePOIs = pois
-  } catch {
-    // Amap 失败不影响 AI 生成
-  }
+  } catch { /* Amap 失败不影响 AI 生成 */ }
 
-  const { object } = await generateObject({
+  const throttledProgress = onProgress
+    ? throttle(onProgress, 1500)
+    : null
+
+  const { partialObjectStream, object } = streamObject({
     model:  getAIProvider(),
     system: poiSystemPrompt(destination, prompt),
     prompt: `目的地：${destination}，${days}天行程，用户诉求：${prompt}
@@ -52,24 +67,39 @@ export async function runPoiAgent(params: {
     schema: StyleAgentOutputSchema,
   })
 
+  // 消费流，触发进度回调
+  for await (const partial of partialObjectStream) {
+    if (!throttledProgress) continue
+    const pois = partial.pois ?? []
+    const lastPoi = pois[pois.length - 1]
+    if (lastPoi?.name) {
+      throttledProgress(partial, `发现 ${lastPoi.name}`)
+    } else if (partial.styleTheme) {
+      throttledProgress(partial, `主题：${partial.styleTheme}`)
+    }
+  }
+
+  const result = await object
+
   // 补充坐标
-  const enrichedPOIs = object.pois.map(poi => {
+  const enrichedPOIs = result.pois.map(poi => {
     const amapPOI = candidatePOIs.find(p => p.name === poi.name)
     return amapPOI?.latLng ? { ...poi, latLng: amapPOI.latLng } : poi
   })
 
-  return { ...object, pois: enrichedPOIs }
+  return { ...result, pois: enrichedPOIs }
 }
 
 /* ── 路线规划 Agent ── */
 export async function runRoutePlanAgent(params: {
-  destination: string
-  travelStyle: string
-  days:        number
-  pois:        Array<{ name: string; address: string; category: string }>
-  startDate:   string
+  destination:  string
+  travelStyle:  string
+  days:         number
+  pois:         Array<{ name: string; address: string; category: string }>
+  startDate:    string
+  onProgress?:  ProgressCallback<RouteOutput>
 }): Promise<RouteOutput> {
-  const { destination, travelStyle, days, pois, startDate } = params
+  const { destination, travelStyle, days, pois, startDate, onProgress } = params
 
   const lines = (travelStyle || '').split('\n')
   const constraintLines = lines.filter((l: string) => /^\[.+\]/.test(l.trim()))
@@ -78,7 +108,11 @@ export async function runRoutePlanAgent(params: {
     ? `\n\n⚠️ 以下约束必须严格体现在行程中：\n${constraintLines.map((l: string) => `- ${l.trim()}`).join('\n')}`
     : ''
 
-  const { object } = await generateObject({
+  const throttledProgress = onProgress
+    ? throttle(onProgress, 1500)
+    : null
+
+  const { partialObjectStream, object } = streamObject({
     model:  getAIProvider(),
     system: ROUTE_SYSTEM_PROMPT,
     prompt: `目的地：${destination}，旅行风格：${coreStyle || '轻松愉快'}，天数：${days}天，起始日期：${startDate || '未知'}${constraintSection}
@@ -89,41 +123,79 @@ export async function runRoutePlanAgent(params: {
     schema: RoutePlanOutputSchema,
   })
 
-  return object
+  for await (const partial of partialObjectStream) {
+    if (!throttledProgress) continue
+    const days_ = partial.days ?? []
+    const lastDay = days_[days_.length - 1]
+    if (lastDay?.title) {
+      throttledProgress(partial, `规划${lastDay.title}`)
+    } else if (days_.length > 0) {
+      throttledProgress(partial, `规划第 ${days_.length} 天行程...`)
+    }
+  }
+
+  return await object
 }
 
 /* ── 旅行贴士 Agent ── */
 export async function runContentAgent(params: {
-  destination: string
-  travelStyle: string
-  days:        number
+  destination:  string
+  travelStyle:  string
+  days:         number
+  onProgress?:  ProgressCallback<ContentOutput>
 }): Promise<ContentOutput> {
-  const { destination, travelStyle, days } = params
+  const { destination, travelStyle, days, onProgress } = params
 
-  const { object } = await generateObject({
+  const throttledProgress = onProgress
+    ? throttle(onProgress, 1500)
+    : null
+
+  const { partialObjectStream, object } = streamObject({
     model:  getAIProvider(),
     system: tipsSystemPrompt(destination, travelStyle),
     prompt: `为 ${destination} ${days} 天旅行生成打包建议和注意事项`,
     schema: ContentAgentOutputSchema,
   })
 
-  return object
+  for await (const partial of partialObjectStream) {
+    if (!throttledProgress) continue
+    const tips = partial.packingTips ?? []
+    if (tips.length > 0) {
+      throttledProgress(partial, `整理装备：${tips[tips.length - 1]}`)
+    }
+  }
+
+  return await object
 }
 
 /* ── XHS 小红书笔记 Agent ── */
 export async function runXhsAgent(params: {
-  destination: string
-  prompt:      string
-  days:        number
+  destination:  string
+  prompt:       string
+  days:         number
+  onProgress?:  ProgressCallback<XHSOutput>
 }): Promise<XHSOutput> {
-  const { destination, prompt, days } = params
+  const { destination, prompt, days, onProgress } = params
 
-  const { object } = await generateObject({
+  const throttledProgress = onProgress
+    ? throttle(onProgress, 1500)
+    : null
+
+  const { partialObjectStream, object } = streamObject({
     model:  getAIProvider(),
     system: xhsSystemPrompt(destination, prompt, days),
     prompt: `为 ${destination} ${days} 天旅行生成 3-4 篇小红书风格攻略笔记，完全贴合用户诉求：${prompt}`,
     schema: XHSAgentOutputSchema,
   })
 
-  return object
+  for await (const partial of partialObjectStream) {
+    if (!throttledProgress) continue
+    const notes = partial.notes ?? []
+    const lastNote = notes[notes.length - 1]
+    if (lastNote?.title) {
+      throttledProgress(partial, `撰写：${lastNote.title}`)
+    }
+  }
+
+  return await object
 }

@@ -397,6 +397,12 @@ export function useHomeFlow() {
                   message: '✓ 完成',
                   preview: state.preview ?? '',
                 });
+              } else if (state.status === 'running' && state.preview) {
+                // 把 DB 里的流式进度文字同步到 UI
+                updateAgent(agentId as AgentId, {
+                  status: 'running',
+                  preview: state.preview,
+                });
               } else if (state.status === 'error') {
                 updateAgent(agentId as AgentId, {
                   status: 'error',
