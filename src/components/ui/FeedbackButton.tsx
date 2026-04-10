@@ -11,7 +11,8 @@ import { getDeviceId } from '@/lib/deviceId'
 
 export function FeedbackButton() {
   const [open, setOpen]         = useState(false)
-  const [contact, setContact]   = useState('')  const [content, setContent]   = useState('')
+  const [contact, setContact]   = useState('')
+  const [content, setContent]   = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]         = useState(false)
   const [error, setError]       = useState('')
