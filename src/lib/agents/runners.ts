@@ -193,7 +193,7 @@ export async function runXhsAgent(params: {
     const notes = partial.notes ?? []
     const lastNote = notes[notes.length - 1]
     if (lastNote?.title) {
-      throttledProgress(partial, `撰写：${lastNote.title}`)
+      throttledProgress(partial, `发现：${lastNote.title}`)
     }
   }
 

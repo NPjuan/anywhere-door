@@ -94,6 +94,14 @@ export async function POST(req: NextRequest) {
     ? `\n\n⚠️ 以下约束条件必须严格遵守：\n${constraintLines.map(l => `- ${l}`).join('\n')}`
     : ''
 
+  // 单独提取返程时间，在 prompt 中强调
+  const departureLine = constraintLines.find(l => l.startsWith('[返程时间]'))
+  const departureWarning = departureLine
+    ? `\n\n🚨 返程时间特别提醒（最高优先级）：${departureLine}
+最后一天的所有活动必须在起飞时间至少2小时前结束。
+若起飞时间在凌晨（00:00-05:59），则最后一天活动最晚到前一晚22:00，严禁安排凌晨游览或在飞机起飞后有任何行程安排。`
+    : ''
+
   // 把坐标字典格式化为易读列表传给 AI
   const poiCoordsSection = poiLatLngMap && Object.keys(poiLatLngMap).length > 0
     ? `\n地点坐标字典（输出活动时按名字匹配并填入 poi 字段）：\n${
@@ -142,7 +150,7 @@ export async function POST(req: NextRequest) {
           model:           getAIProvider(),
           maxOutputTokens: 8000,
           system: SYNTHESIS_SYSTEM_PROMPT,
-          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}
+          prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${departureWarning}
 
 出发地：${originCity}，目的地：${destCity}
 旅行时间：${startDate} 至 ${endDate}（${days}天）
