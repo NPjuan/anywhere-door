@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useReducer, useRef, useEffect } from 'react';
+import { useCallback, useReducer, useRef, useEffect, useState } from 'react';
 import { useAgentStore, type AgentId } from '@/lib/stores/agentStore';
 import { useItineraryStore } from '@/lib/stores/itineraryStore';
-import { useSearchStore } from '@/lib/stores/searchStore';
+import { useSearchStore, type SearchParams } from '@/lib/stores/searchStore';
 import { getDeviceId } from '@/lib/deviceId';
 import { findCityByCode } from '@/lib/cities';
 
@@ -158,6 +158,9 @@ interface PollingState {
 export function useHomeFlow() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 待恢复的表单数据（非 pending 状态，让用户主动确认恢复）
+  const [pendingRestore, setPendingRestore] = useState<Partial<SearchParams> | null>(null);
 
   const {
     updateAgent,
@@ -571,42 +574,37 @@ export function useHomeFlow() {
           | null
           | undefined;
 
-        // ── 恢复表单填写内容（所有状态通用）──
+        // ── 恢复表单填写内容 ──
         if (pp) {
           // 城市：优先用存储的完整对象，fallback 用 code 反查
           const originCity =
-            (pp.origin as
-              | import('@/lib/stores/searchStore').CityOption
-              | null) ??
-            findCityByCode((pp.originCode as string) ?? '') ??
-            null;
+            (pp.origin as import('@/lib/stores/searchStore').CityOption | null) ??
+            findCityByCode((pp.originCode as string) ?? '') ?? null;
           const destinationCity =
-            (pp.destination as
-              | import('@/lib/stores/searchStore').CityOption
-              | null) ??
-            findCityByCode((pp.destinationCode as string) ?? '') ??
-            null;
+            (pp.destination as import('@/lib/stores/searchStore').CityOption | null) ??
+            findCityByCode((pp.destinationCode as string) ?? '') ?? null;
 
-          restoreSearchParams({
-            origin: originCity,
-            destination: destinationCity,
-            startDate: (pp.startDate as string) || '',
-            endDate: (pp.endDate as string) || '',
-            prompt: (pp.prompt as string) || '',
-            travelers: (pp.travelers as number) ?? 1,
-            hotelPOI:
-              (pp.hotelPOI as
-                | import('@/lib/stores/searchStore').PlacePOI
-                | null) ?? null,
-            mustVisit:
-              (pp.mustVisit as import('@/lib/stores/searchStore').PlacePOI[]) ??
-              [],
-            mustAvoid:
-              (pp.mustAvoid as import('@/lib/stores/searchStore').PlacePOI[]) ??
-              [],
-            arrivalTime: (pp.arrivalTime as string) || '',
+          const restorable: Partial<SearchParams> = {
+            origin:        originCity,
+            destination:   destinationCity,
+            startDate:     (pp.startDate     as string) || '',
+            endDate:       (pp.endDate       as string) || '',
+            prompt:        (pp.prompt        as string) || '',
+            travelers:     (pp.travelers     as number) ?? 1,
+            hotelPOI:      (pp.hotelPOI      as import('@/lib/stores/searchStore').PlacePOI | null) ?? null,
+            mustVisit:     (pp.mustVisit     as import('@/lib/stores/searchStore').PlacePOI[]) ?? [],
+            mustAvoid:     (pp.mustAvoid     as import('@/lib/stores/searchStore').PlacePOI[]) ?? [],
+            arrivalTime:   (pp.arrivalTime   as string) || '',
             departureTime: (pp.departureTime as string) || '',
-          });
+          };
+
+          if (latest.status === 'pending') {
+            // pending 状态：自动恢复（用户本来就在规划中，需要无感继续）
+            restoreSearchParams(restorable);
+          } else {
+            // done/error/interrupted：不自动填，把数据暂存，等用户主动点击恢复
+            setPendingRestore(restorable);
+          }
         }
 
         // ── pending：继续规划 ──
@@ -879,6 +877,13 @@ export function useHomeFlow() {
     clearItinerary();
   }, [resetAgents, clearItinerary, stopPolling]);
 
+  const confirmRestore = useCallback(() => {
+    if (pendingRestore) {
+      restoreSearchParams(pendingRestore);
+      setPendingRestore(null);
+    }
+  }, [pendingRestore, restoreSearchParams]);
+
   return {
     ...state,
     generatePromptPreview,
@@ -888,5 +893,8 @@ export function useHomeFlow() {
     retryAfterFailure,
     reset,
     goBack,
+    pendingRestore,
+    confirmRestore,
+    dismissRestore: () => setPendingRestore(null),
   };
 }
