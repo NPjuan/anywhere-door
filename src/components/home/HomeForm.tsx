@@ -742,7 +742,7 @@ const DateField = memo(
             {...timePickerShared}
             value={departureTime ? dayjs(departureTime, 'HH:mm') : null}
             onChange={(t) => onDepartureTimeChange(t ? t.format('HH:mm') : '')}
-            placeholder="返程起飞"
+            placeholder="起飞时间"
             style={{ width: '50%', height: 24 }}
           />
         </div>
