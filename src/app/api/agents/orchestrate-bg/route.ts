@@ -4,9 +4,13 @@ import { supabase } from '@/lib/supabase'
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
-   后台异步规划 — 立即返回 202，后台执行直到完成
+   同步执行 4 个 Agent（等待全部完成后返回），确保 Vercel 不提前终止进程
    前端通过轮询 GET /api/plans/[id] 获取进度
    ============================================================ */
+
+// Vercel Pro 最长 300s，Hobby 最长 60s
+// 4 个 Agent 并行约 30-60s，synthesis 由前端流式调用
+export const maxDuration = 300
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
@@ -109,9 +113,8 @@ export async function POST(req: NextRequest) {
 
   if (!planId) return NextResponse.json({ error: 'Missing planId' }, { status: 400 })
 
-  // 立即返回 202，后台异步执行（不 await）
-  // Next.js App Router：Response 发送后 Node.js 进程继续运行直到 event loop 空
-  void runPlanningInBackground(planId, originCode, destinationCode, startDate, endDate, prompt)
+  // 同步执行，等待所有 Agent 完成（Vercel 环境 void 后台任务不可靠）
+  await runPlanningInBackground(planId, originCode, destinationCode, startDate, endDate, prompt)
 
-  return NextResponse.json({ ok: true, planId }, { status: 202 })
+  return NextResponse.json({ ok: true, planId }, { status: 200 })
 }

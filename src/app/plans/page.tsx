@@ -15,6 +15,7 @@ const PAGE_SIZE = 10
 
 interface PlanRow {
   id:          string
+  status:      string
   title:       string
   summary:     string
   destination: string

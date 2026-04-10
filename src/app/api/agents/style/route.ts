@@ -1,9 +1,12 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { poiSystemPrompt } from '@/lib/agents/prompts'
 import { StyleAgentOutputSchema } from '@/lib/agents/types'
 import { getAmapClient } from '@/lib/api/maps/AmapClient'
+
+export const maxDuration = 300
 
 /* Agent 2 — POI 推荐（接受自由 prompt）/ POI recommendations from free prompt */
 export async function POST(req: NextRequest) {

@@ -1,8 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { ROUTE_SYSTEM_PROMPT } from '@/lib/agents/prompts'
 import { RoutePlanOutputSchema } from '@/lib/agents/types'
+
+export const maxDuration = 300
 
 /* Agent 3 — 每日路线规划 / Daily route planning */
 export async function POST(req: NextRequest) {

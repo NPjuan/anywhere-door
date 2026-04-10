@@ -1,7 +1,10 @@
+
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { POPULAR_CITIES } from '@/lib/cities'
+
+export const maxDuration = 60
 
 /* ============================================================
    preview-prompt — 生成行程规划 Prompt 预览（流式）

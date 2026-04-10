@@ -1,8 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { xhsSystemPrompt } from '@/lib/agents/prompts'
 import { XHSAgentOutputSchema } from '@/lib/agents/types'
+
+export const maxDuration = 300
 
 /* ============================================================
    XHS Agent — 小红书风格笔记生成

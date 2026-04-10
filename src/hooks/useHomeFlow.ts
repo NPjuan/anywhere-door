@@ -377,7 +377,12 @@ export function useHomeFlow() {
     abortRef.current = new AbortController()
 
     try {
-      // 发起后台任务（立即返回 202）
+      // 先初始化 UI 状态 + 启动轮询，让用户立即看到进度
+      const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
+      agentIds.forEach((id) => updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' }))
+      startPollingForPlan(planId)
+
+      // 发起规划请求（Vercel 上同步等待所有 Agent 完成，本地也兼容）
       const res = await fetch('/api/agents/orchestrate-bg', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -392,13 +397,6 @@ export function useHomeFlow() {
         }),
       })
       if (!res.ok) throw new Error(`规划失败 (${res.status})`)
-
-      // 初始化 UI 状态
-      const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
-      agentIds.forEach((id) => updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' }))
-
-      // 启动轮询
-      startPollingForPlan(planId)
 
     } catch (err) {
       stopPolling()

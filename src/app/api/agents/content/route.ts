@@ -1,8 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { tipsSystemPrompt } from '@/lib/agents/prompts'
 import { ContentAgentOutputSchema } from '@/lib/agents/types'
+
+export const maxDuration = 300
 
 /* Agent 4 — 旅行贴士生成（重命名 content → tips）/ Travel tips generation */
 export async function POST(req: NextRequest) {

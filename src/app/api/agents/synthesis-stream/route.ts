@@ -1,9 +1,12 @@
+
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { SYNTHESIS_SYSTEM_PROMPT } from '@/lib/agents/prompts'
 import { supabase } from '@/lib/supabase'
 import { parseJSON } from '@/lib/utils/jsonParse'
+
+export const maxDuration = 300
 
 /* ============================================================
    POST /api/agents/synthesis-stream
