@@ -92,9 +92,12 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
     const polyline = new window.AMap.Polyline({
       path:          pts,
       strokeColor:   DAY_COLOR,
-      strokeWeight:  2,
-      strokeOpacity: 0.5,
+      strokeWeight:  5,
+      strokeOpacity: 0.8,
       strokeStyle:   'dashed',
+      isOutline:     true,
+      outlineColor:  '#ffffff',
+      borderWeight:  1,
     })
     polyline.setMap(map)
   }, [])
@@ -108,12 +111,18 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
 
       const driving = new window.AMap.Driving({
         map,
-        hideMarkers:    true,   // 不显示驾车默认标记（我们自己画）
-        showTraffic:    false,
-        autoFitView:    false,
-        strokeColor:    DAY_COLOR,
-        strokeWeight:   3,
-        strokeOpacity:  0.75,
+        hideMarkers: true,   // 不显示驾车默认标记（我们自己画）
+        showTraffic: false,
+        autoFitView: false,
+        // Driving 路线样式通过 lineOptions 传入
+        lineOptions: {
+          strokeColor:   DAY_COLOR,
+          strokeWeight:  6,
+          strokeOpacity: 0.9,
+          isOutline:     true,
+          outlineColor:  '#ffffff',
+          borderWeight:  1,
+        },
       })
       drivingRef.current = driving
 
