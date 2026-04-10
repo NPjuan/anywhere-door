@@ -46,7 +46,6 @@ interface DrivingInstance {
     opts:   { waypoints?: [number, number][] },
     cb:     (status: string, result: unknown) => void,
   ) => void
-  setMap: (m: AMapInstance | null) => void
   clear:  () => void
 }
 
@@ -222,7 +221,6 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
       markersRef.current = []
       if (drivingRef.current) {
         drivingRef.current.clear()
-        drivingRef.current.setMap(null)
         drivingRef.current = null
       }
       if (mapRef.current) {
