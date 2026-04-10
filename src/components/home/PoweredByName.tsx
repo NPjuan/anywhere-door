@@ -6,13 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 /* ============================================================
    PoweredByName — 交互式作者名
    mode 由父组件传入：
-     'normal'  — 普通显示
      'piano'   — 每个字母点击弹不同音符 + 飘心
-     'doraemon'— 点击按主题曲音序弹奏 + 炫彩闪烁
+     'doraemon'— 点击按小叮当旋律弹奏
    ============================================================ */
 
-/* 哆啦A梦主题曲音序（使用标准音名频率）
-   "あたまテカテカ" 旋律近似，用简谱 5 6 1 2 3 5 等映射 */
+/* 音符频率表 */
 const NOTE_FREQS: Record<string, number> = {
   C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23,
   G4: 392.00, A4: 440.00, B4: 493.88,
@@ -20,12 +18,20 @@ const NOTE_FREQS: Record<string, number> = {
   G5: 783.99, A5: 880.00,
 }
 
-// 哆啦A梦主题曲片段（"ドラえもんのうた"核心旋律）
+// 小叮当（Jingle Bells）核心旋律
 const DORAEMON_MELODY = [
-  'G4','A4','C5','A4','C5','D5','C5','A4',
-  'G4','A4','C5','A4','D5','E5','D5',
-  'G4','A4','C5','A4','C5','D5','E5','D5','C5',
-  'A4','G4','E4','G4','A4','C5',
+  'E4','E4','E4',
+  'E4','E4','E4',
+  'E4','G4','C4','D4','E4',
+  'F4','F4','F4','F4',
+  'F4','E4','E4','E4','E4',
+  'E4','D4','D4','E4','D4','G4',
+  'E4','E4','E4',
+  'E4','E4','E4',
+  'E4','G4','C4','D4','E4',
+  'F4','F4','F4','F4',
+  'F4','E4','E4','E4','G4','G4',
+  'F4','D4','C4',
 ]
 
 const PIANO_FREQS = Object.values(NOTE_FREQS).slice(0, 11)
@@ -59,41 +65,26 @@ function playFreq(freq: number, duration = 0.5) {
 }
 
 interface Props {
-  mode: 'normal' | 'piano' | 'doraemon'
+  mode: 'piano' | 'doraemon'
 }
 
 export const PoweredByName = memo(({ mode }: Props) => {
   const name = 'Pan Junyuan'
-  const [shaking, setShaking]     = useState<number | null>(null)
-  const [hearts, setHearts]       = useState<FloatingHeart[]>([])
-  const [rainbowIdx, setRainbowIdx] = useState(0)   // 哆啦A梦模式下字母颜色偏移
-  const counterRef     = useRef(0)
-  const melodyIdxRef   = useRef(0)
-  const containerRef   = useRef<HTMLSpanElement>(null)
-  const letterRefs     = useRef<(HTMLSpanElement | null)[]>([])
-  const rainbowTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // 哆啦A梦模式：持续滚动彩虹颜色
-  useEffect(() => {
-    if (mode === 'doraemon') {
-      rainbowTimerRef.current = setInterval(() => {
-        setRainbowIdx(i => (i + 1) % RAINBOW_COLORS.length)
-      }, 120)
-    }
-    return () => {
-      if (rainbowTimerRef.current) clearInterval(rainbowTimerRef.current)
-    }
-  }, [mode])
+  const [shaking, setShaking] = useState<number | null>(null)
+  const [hearts, setHearts]   = useState<FloatingHeart[]>([])
+  const counterRef   = useRef(0)
+  const melodyIdxRef = useRef(0)
+  const containerRef = useRef<HTMLSpanElement>(null)
+  const letterRefs   = useRef<(HTMLSpanElement | null)[]>([])
 
   // 切换模式时重置旋律进度
   useEffect(() => {
     melodyIdxRef.current = 0
   }, [mode])
 
-  const getLetterColor = useCallback((charIdx: number) => {
-    if (mode !== 'doraemon') return undefined
-    return RAINBOW_COLORS[(charIdx + rainbowIdx) % RAINBOW_COLORS.length]
-  }, [mode, rainbowIdx])
+  const getLetterColor = useCallback((_charIdx: number) => {
+    return undefined  // 名字字母不做彩虹，颜色由父级 color 继承
+  }, [])
 
   const handleClick = useCallback((i: number, ch: string) => {
     if (ch === ' ') return

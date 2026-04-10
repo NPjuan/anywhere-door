@@ -33,7 +33,7 @@ import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
 
-type FooterMode = 'normal' | 'piano' | 'doraemon'
+type FooterMode = 'piano' | 'doraemon'
 
 const FOOTER_RAINBOW = ['#FF6B6B','#FF9F43','#FECA57','#1DD1A1','#54A0FF','#A29BFE','#FD79A8']
 
@@ -44,17 +44,17 @@ function RainbowChar({ char, offset }: { char: string; offset: number }) {
     return () => clearInterval(t)
   }, [])
   return (
-    <span style={{ color: FOOTER_RAINBOW[(tick + offset) % FOOTER_RAINBOW.length], transition: 'color 0.1s', fontWeight: 600 }}>
+    <span style={{ color: FOOTER_RAINBOW[(tick + offset) % FOOTER_RAINBOW.length], transition: 'color 0.1s' }}>
       {char}
     </span>
   )
 }
 
 function FooterPowered() {
-  const [mode, setMode] = useState<FooterMode>('normal')
+  const [mode, setMode] = useState<FooterMode>('piano')
 
   const handlePowered = () => {
-    setMode(m => m === 'normal' ? 'piano' : m === 'piano' ? 'doraemon' : 'normal')
+    setMode(m => m === 'piano' ? 'doraemon' : 'piano')
   }
 
   const poweredChars = 'Powered'.split('')
@@ -70,11 +70,11 @@ function FooterPowered() {
       <span
         onClick={handlePowered}
         className="cursor-pointer inline-flex items-center"
-        title={mode === 'normal' ? '开启钢琴模式' : mode === 'piano' ? '开启哆啦A梦模式' : '退出'}
+        title={mode === 'piano' ? '切换哆啦A梦模式' : '切换钢琴模式'}
       >
         {mode === 'doraemon'
           ? poweredChars.map((ch, i) => <RainbowChar key={i} char={ch} offset={i} />)
-          : <span style={{ color: mode === 'piano' ? '#94A3B8' : '#CBD5E1' }}>Powered</span>
+          : <span style={{ color: '#94A3B8' }}>Powered</span>
         }
       </span>
       {' by '}
