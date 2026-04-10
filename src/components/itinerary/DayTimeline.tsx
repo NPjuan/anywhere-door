@@ -45,8 +45,8 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
 
   const timelineItems = sections.flatMap((section) => [
     {
-      dot: <span />,
-      children: (
+      icon: <span />,
+      content: (
         <div className="flex items-center gap-2 -ml-1 mb-1 mt-1">
           <span className="text-xs font-medium" style={{ color: '#2563EB' }}>{section.label}</span>
           <span className="text-xs" style={{ color: '#CBD5E1' }}>{section.labelEn}</span>
@@ -54,13 +54,13 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
       ),
     },
     ...section.activities.map((activity) => ({
-      dot: (
+      icon: (
         <div
           className="w-2 h-2 rounded-full border-[1.5px] bg-white mt-[3px]"
           style={{ borderColor: '#2563EB' }}
         />
       ),
-      children: (
+      content: (
         <ActivityCard
           activity={activity}
           refineMode={refineMode}

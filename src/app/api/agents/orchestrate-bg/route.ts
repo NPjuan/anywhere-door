@@ -55,7 +55,14 @@ async function runPlanningInBackground(
 
   // 工具：把当前结果写入 synthesis waiting
   const triggerSynthesis = async () => {
-    const poiNames    = (results.poi  as { pois?: Array<{name:string}> }  | null)?.pois?.map(p => p.name).slice(0, 15) ?? []
+    const poiResult    = results.poi as { pois?: Array<{name:string; address:string; category:string; latLng?:{lat:number;lng:number}}> } | null
+    const poiNames     = poiResult?.pois?.map(p => p.name).slice(0, 15) ?? []
+    // 传完整坐标字典，供 synthesis 按名字匹配回填
+    const poiLatLngMap = Object.fromEntries(
+      (poiResult?.pois ?? [])
+        .filter(p => p.latLng)
+        .map(p => [p.name, { lat: p.latLng!.lat, lng: p.latLng!.lng, address: p.address, category: p.category }])
+    )
     const routeDays   = (results.route as { days?: unknown[] } | null)?.days ?? []
     const packingTips = (results.tips  as { packingTips?: string[] } | null)?.packingTips?.slice(0, 8) ?? []
     const warnings    = (results.tips  as { warnings?: string[] } | null)?.warnings?.slice(0, 5) ?? []
@@ -64,7 +71,7 @@ async function runPlanningInBackground(
     progress.synthesis = {
       status: 'waiting',
       preview: '',
-      input: { originCity, destCity, startDate, endDate, days, prompt, poiNames, routeDays, packingTips, warnings, xhsNotes },
+      input: { originCity, destCity, startDate, endDate, days, prompt, poiNames, poiLatLngMap, routeDays, packingTips, warnings, xhsNotes },
     }
     await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
   }

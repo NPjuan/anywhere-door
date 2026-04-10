@@ -41,13 +41,42 @@ export async function POST(req: NextRequest) {
 
   const {
     originCity, destCity, startDate, endDate, days, prompt,
-    poiNames, routeDays, packingTips, warnings, xhsNotes,
+    poiNames, poiLatLngMap, routeDays, packingTips, warnings, xhsNotes,
   } = synthInput as {
     originCity: string; destCity: string; startDate: string; endDate: string
     days: number; prompt: string
-    poiNames: string[]; routeDays: unknown[]; packingTips: string[]
+    poiNames: string[]
+    poiLatLngMap: Record<string, { lat: number; lng: number; address: string; category: string }>
+    routeDays: unknown[]; packingTips: string[]
     warnings: string[]; xhsNotes: unknown[]
   }
+
+  // 把 poi 坐标按名字回填进 routeDays 的每个活动，让地图有标点
+  const enrichedRouteDays = routeDays.map((day) => {
+    const d = day as Record<string, unknown>
+    const enrichActivities = (acts: unknown[]) => acts.map((act) => {
+      const a = act as Record<string, unknown>
+      const name = a.name as string
+      const coords = name ? poiLatLngMap?.[name] : null
+      if (!coords) return a
+      return {
+        ...a,
+        poi: {
+          id:       name.replace(/\s+/g, '_').toLowerCase(),
+          name,
+          address:  coords.address || '',
+          category: coords.category || 'attraction',
+          latLng:   { lat: coords.lat, lng: coords.lng },
+        },
+      }
+    })
+    return {
+      ...d,
+      morning:   Array.isArray(d.morning)   ? enrichActivities(d.morning)   : d.morning,
+      afternoon: Array.isArray(d.afternoon) ? enrichActivities(d.afternoon) : d.afternoon,
+      evening:   Array.isArray(d.evening)   ? enrichActivities(d.evening)   : d.evening,
+    }
+  })
 
   // 从 enrichedPrompt 中解析结构化约束行（以 [xxx] 开头的行）
   const lines = (prompt || '').split('\n')
@@ -83,7 +112,7 @@ export async function POST(req: NextRequest) {
   const agentDataSection = hasPriorData
     ? `
 推荐地点（名称列表）：${JSON.stringify(poiNames)}
-每日行程（已规划好）：${JSON.stringify(routeDays)}
+每日行程（已规划好，含坐标）：${JSON.stringify(enrichedRouteDays)}
 打包建议：${JSON.stringify(hasTipsData ? packingTips : [])}
 注意事项：${JSON.stringify(hasTipsData ? warnings : [])}
 小红书笔记：${JSON.stringify(hasXhsData ? xhsNotes : [])}`
@@ -116,7 +145,7 @@ ${agentDataSection}
 请输出完整 FullItinerary JSON，严格遵守以下 schema：
 - days: 数组，每天包含 day(数字)、date(YYYY-MM-DD)、title(中文标题)、morning/afternoon/evening(活动数组)
 - 每个活动包含：time(HH:mm)、name、description、duration(如"2小时")、cost(可选)、transport(可选)
-- 如有坐标数据，活动中的 poi 字段包含：id、name、address、category、latLng({lat, lng})
+- 活动中若存在 poi 字段，直接从输入数据中复用（含 id、name、address、category、latLng），不要修改坐标
 - 顶层字段：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt
 - budget 对象必须包含 low 和 high 两个数字（单位人民币），如 {"low": 2000, "high": 3500, "currency": "CNY"}`,
         })
