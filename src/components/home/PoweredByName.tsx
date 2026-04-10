@@ -28,6 +28,14 @@ function getAudioCtx(): AudioContext {
   return _sharedCtx
 }
 
+// 关闭并销毁当前 AudioContext，停止所有已排队的音符
+function killAudioCtx() {
+  if (_sharedCtx && _sharedCtx.state !== 'closed') {
+    _sharedCtx.close().catch(() => {})
+  }
+  _sharedCtx = null
+}
+
 // 用 Web Audio 精确时间调度播放一个音符（避免 setTimeout 漂移）
 function scheduleNote(ctx: AudioContext, freq: number, startAt: number, duration: number) {
   const osc  = ctx.createOscillator()
@@ -182,6 +190,7 @@ export const PoweredByName = memo(({ mode }: Props) => {
     return () => {
       cancelled = true
       if (timerRef.current) clearTimeout(timerRef.current)
+      killAudioCtx()   // 关闭 AudioContext，立即停止所有已排队音符
       setShaking(null)
     }
   }, [mode, nonSpaceIdx])
