@@ -6,190 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 /* ============================================================
    PoweredByName
      'piano'   — 点击每个字母弹不同音符 + 飘心
-     'doraemon'— 自动循环演奏ドラえもんのうた，字母依次跳动+飘心
+     'doraemon'— 用 Tone.js 播放真实 MIDI 钢琴曲，字母随节拍跳动
    ============================================================ */
 
-const NOTE_FREQS: Record<string, number> = {
-  A3: 220.00, B3: 246.94,
-  C4: 261.63, C_4: 277.18, D4: 293.66, E4: 329.63,
-  F4: 349.23, F_4: 369.99, G4: 392.00, A4: 440.00, B4: 493.88,
-  C5: 523.25, C_5: 554.37, D5: 587.33, E5: 659.25,
-  F5: 698.46, F_5: 739.99, G5: 783.99,
-}
-
-// 共享 AudioContext
-let _sharedCtx: AudioContext | null = null
-function getAudioCtx(): AudioContext {
-  if (typeof window === 'undefined') throw new Error('no window')
-  if (!_sharedCtx || _sharedCtx.state === 'closed') {
-    _sharedCtx = new (window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-  }
-  if (_sharedCtx.state === 'suspended') _sharedCtx.resume()
-  return _sharedCtx
-}
-
-// 关闭并销毁当前 AudioContext，停止所有已排队的音符
-function killAudioCtx() {
-  if (_sharedCtx && _sharedCtx.state !== 'closed') {
-    _sharedCtx.close().catch(() => {})
-  }
-  _sharedCtx = null
-}
-
-// 用 Web Audio 精确时间调度播放一个音符（避免 setTimeout 漂移）
-function scheduleNote(ctx: AudioContext, freq: number, startAt: number, duration: number) {
-  const osc  = ctx.createOscillator()
-  const gain = ctx.createGain()
-  osc.connect(gain)
-  gain.connect(ctx.destination)
-  osc.type = 'triangle'   // triangle 比 sine 更像铃声/音乐盒
-  osc.frequency.value = freq
-  gain.gain.setValueAtTime(0, startAt)
-  gain.gain.linearRampToValueAtTime(0.32, startAt + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration * 0.9)
-  osc.start(startAt)
-  osc.stop(startAt + duration)
-}
-
-function playFreq(freq: number, duration = 0.45) {
-  try {
-    const ctx = getAudioCtx()
-    scheduleNote(ctx, freq, ctx.currentTime, duration)
-  } catch { /* 静默 */ }
-}
-
-// 哆啦A梦主题曲（国语版），D大调，按钢琴谱主旋律逐音识读
-// D4=1 E4=2 F#4=3 G4=4 A4=5 B4=6 C#5=7 D5=1' E5=2'
-// BPM≈100，附点八分+十六分节奏型为主
-const Q  = 500   // 四分音符
-const H  = 1000  // 二分音符
-const E  = 250   // 八分音符
-const DE = 375   // 附点八分（3/4拍感）
-const S  = 125   // 十六分音符
-
-const DORAEMON_SONG: { note: string; dur: number }[] = [
-  // ══ 主歌「心中有许多愿望 能够实现有多棒」m10-11 ══
-  // F#· A  B· A  | F#· A  B· A
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  // D5· B  A· F# | D5· B  A· F#
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-
-  // ══「只有多啦A梦 可以带着我」m12 ══
-  // A· B  D5· B | A· B  D5· B
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  // m13：D5 全音符
-  { note: 'D5',  dur: H },
-
-  // ══「可爱圆圆胖脸庞 小小叮当挂身上」m14-15 ══
-  // F#· A  B· D5 | F#· A  B· D5
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  // F#5· E5  D5· B | F#5· E5  D5· B
-  { note: 'F_5', dur: DE }, { note: 'E5',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'F_5', dur: DE }, { note: 'E5',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-
-  // ══「总会在我不知所措 给我帮忙」m16-17 ══
-  // A· B  D5· B | A· B  D5· B
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  // F#· A  B· A | F#· E  D  -
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: Q  }, { note: 'E4',  dur: Q },
-  { note: 'D4',  dur: H  },
-
-  // ══ 副歌「到想象的天堂 穿越了时光」m27-30 ══
-  // F#· A  B· A  | F#· A  E· F#
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'E4',  dur: DE }, { note: 'F_4', dur: S },
-  // D· E  F#· A | B· A  F#· E
-  { note: 'D4',  dur: DE }, { note: 'E4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'E4',  dur: S },
-  // D· E  F#· A | B· D5  E5· D5
-  { note: 'D4',  dur: DE }, { note: 'E4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'E5',  dur: DE }, { note: 'D5',  dur: S },
-  // C#5· B  A· F# | E· F#  D  -（哆啦A梦收尾）
-  { note: 'C_5', dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'E4',  dur: Q  }, { note: 'F_4', dur: Q },
-  { note: 'D4',  dur: H  },
-
-  // ══ 主歌2「每天过得都一样」（重复主歌旋律）══
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'D5',  dur: H  },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'F_5', dur: DE }, { note: 'E5',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'F_5', dur: DE }, { note: 'E5',  dur: S },
-  { note: 'D5',  dur: DE }, { note: 'B4',  dur: S },
-  { note: 'F_4', dur: Q  }, { note: 'E4',  dur: Q },
-  { note: 'D4',  dur: H  },
-
-  // ══ 副歌2（重复）結尾延長 ══
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'E4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'D4',  dur: DE }, { note: 'E4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'A4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'E4',  dur: S },
-  { note: 'D4',  dur: DE }, { note: 'E4',  dur: S },
-  { note: 'F_4', dur: DE }, { note: 'A4',  dur: S },
-  { note: 'B4',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'E5',  dur: DE }, { note: 'D5',  dur: S },
-  { note: 'C_5', dur: DE }, { note: 'B4',  dur: S },
-  { note: 'A4',  dur: DE }, { note: 'F_4', dur: S },
-  { note: 'E4',  dur: Q  }, { note: 'F_4', dur: Q },
-  { note: 'D4',  dur: H + Q },
-]
-
-const PIANO_FREQS = [
-  NOTE_FREQS.C4, NOTE_FREQS.D4, NOTE_FREQS.E4, NOTE_FREQS.F4,
-  NOTE_FREQS.G4, NOTE_FREQS.A4, NOTE_FREQS.B4,
-  NOTE_FREQS.C5, NOTE_FREQS.D5, NOTE_FREQS.E5, NOTE_FREQS.F5,
-]
-
 const HEART_COLORS = ['❤️','🧡','💛','💚','💙','💜','🩷','🩵']
+const PIANO_NOTE_NAMES = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5']
 
 interface FloatingHeart { id: number; x: number; color: string }
-
 interface Props { mode: 'piano' | 'doraemon' }
 
 export const PoweredByName = memo(({ mode }: Props) => {
@@ -202,88 +25,145 @@ export const PoweredByName = memo(({ mode }: Props) => {
 
   const [shaking, setShaking] = useState<number | null>(null)
   const [hearts, setHearts]   = useState<FloatingHeart[]>([])
-  const counterRef   = useRef(0)
-  const containerRef = useRef<HTMLSpanElement>(null)
-  const letterRefs   = useRef<(HTMLSpanElement | null)[]>([])
-  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const counterRef    = useRef(0)
+  const containerRef  = useRef<HTMLSpanElement>(null)
+  const letterRefs    = useRef<(HTMLSpanElement | null)[]>([])
+  const tonePartsRef  = useRef<{ dispose: () => void }[]>([])
+  const transportRef  = useRef<{ stop: () => void; dispose: () => void } | null>(null)
+  const beatTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const letterCycleRef = useRef(0)
 
-  /* 自动演奏（doraemon 模式）— 用 Web Audio 精确时间调度 */
+  const spawnHeart = useCallback((li: number) => {
+    const el  = letterRefs.current[li]
+    const box = containerRef.current
+    let x = 0
+    if (box && el) {
+      const cr = box.getBoundingClientRect()
+      const lr = el.getBoundingClientRect()
+      x = lr.left - cr.left + lr.width / 2 - 8
+    }
+    const id    = ++counterRef.current
+    const color = HEART_COLORS[id % HEART_COLORS.length]
+    setHearts(h => [...h, { id, x, color }])
+    setTimeout(() => setHearts(h => h.filter(hh => hh.id !== id)), 1400)
+  }, [])
+
+  /* doraemon 模式：加载并播放 MIDI */
   useEffect(() => {
     if (mode !== 'doraemon') {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      // 停止播放
+      tonePartsRef.current.forEach(p => p.dispose())
+      tonePartsRef.current = []
+      transportRef.current?.stop()
+      transportRef.current?.dispose()
+      transportRef.current = null
+      if (beatTimerRef.current) clearInterval(beatTimerRef.current)
       setShaking(null)
       return
     }
 
-    let cancelled   = false
-    let letterIdx   = 0
+    let cancelled = false
 
-    const spawnHeart = (li: number) => {
-      const el  = letterRefs.current[li]
-      const box = containerRef.current
-      let x = 0
-      if (box && el) {
-        const cr = box.getBoundingClientRect()
-        const lr = el.getBoundingClientRect()
-        x = lr.left - cr.left + lr.width / 2 - 8
-      }
-      const id    = ++counterRef.current
-      const color = HEART_COLORS[id % HEART_COLORS.length]
-      setHearts(h => [...h, { id, x, color }])
-      setTimeout(() => setHearts(h => h.filter(hh => hh.id !== id)), 1400)
-    }
-
-    // 一次排队一整段旋律的所有音符，节奏完全准确
-    const schedulePass = () => {
-      if (cancelled) return
+    const startPlayback = async () => {
       try {
-        const ctx = getAudioCtx()
-        let t = ctx.currentTime + 0.05
-        DORAEMON_SONG.forEach(({ note, dur }) => {
-          const freq   = NOTE_FREQS[note]
-          const durSec = dur / 1000
-          scheduleNote(ctx, freq, t, durSec * 0.88)
+        // 动态 import，避免 SSR 报错
+        const [Tone, { Midi }] = await Promise.all([
+          import('tone'),
+          import('@tonejs/midi'),
+        ])
+        if (cancelled) return
 
-          // 提前算好这个音符对应的字母和爱心，快照进闭包
-          const delay    = (t - ctx.currentTime) * 1000
-          const snapLi   = nonSpaceIdx[letterIdx % nonSpaceIdx.length]
-          const snapHeart = letterIdx % 2 === 0
-          letterIdx++   // 同步递增，下一个音符用下一个字母
+        // 加载 MIDI
+        const res  = await fetch('/doraemon.mid')
+        const buf  = await res.arrayBuffer()
+        const midi = new Midi(buf)
+        if (cancelled) return
 
-          setTimeout(() => {
-            if (cancelled) return
-            setShaking(snapLi)
-            setTimeout(() => setShaking(s => s === snapLi ? null : s), dur * 0.65)
-            if (snapHeart) spawnHeart(snapLi)
-          }, delay)
+        // 创建钢琴音色（Tone.js 内置 Sampler 用钢琴采样）
+        const sampler = new Tone.Sampler({
+          urls: {
+            A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+            A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+            A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+            A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+            A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+            A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+            A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+            A7: 'A7.mp3', C8: 'C8.mp3',
+          },
+          release: 1,
+          baseUrl: 'https://tonejs.github.io/audio/salamander/',
+        }).toDestination()
 
-          t += durSec
-        })
+        // 等采样加载完
+        await Tone.loaded()
+        if (cancelled) { sampler.dispose(); return }
 
-        // 整段结束后 500ms 间隔再循环
-        const loopDelay = (t - ctx.currentTime) * 1000 + 500
-        timerRef.current = setTimeout(() => {
-          if (!cancelled) schedulePass()
-        }, loopDelay)
-      } catch { /* 静默 */ }
+        // 设置 BPM
+        Tone.getTransport().bpm.value = midi.header.tempos[0]?.bpm ?? 126
+
+        // 安排所有音符
+        const track = midi.tracks[0]
+        const part  = new Tone.Part((time: number, note: { name: string; duration: number; velocity: number }) => {
+          sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity)
+        }, track.notes.map(n => ({ time: n.time, name: n.name, duration: n.duration, velocity: n.velocity })))
+
+        part.loop  = true
+        part.loopEnd = midi.duration
+
+        tonePartsRef.current = [part as unknown as { dispose: () => void }]
+        transportRef.current = Tone.getTransport() as unknown as { stop: () => void; dispose: () => void }
+
+        part.start(0)
+        Tone.getTransport().start()
+
+        // 按节拍驱动字母跳动
+        const bpm    = midi.header.tempos[0]?.bpm ?? 126
+        const beatMs = (60 / bpm) * 1000
+        beatTimerRef.current = setInterval(() => {
+          if (cancelled) return
+          const li = nonSpaceIdx[letterCycleRef.current % nonSpaceIdx.length]
+          letterCycleRef.current++
+          setShaking(li)
+          setTimeout(() => setShaking(s => s === li ? null : s), beatMs * 0.6)
+          if (letterCycleRef.current % 3 === 0) spawnHeart(li)
+        }, beatMs)
+
+      } catch (err) {
+        console.error('[PoweredByName] MIDI playback error:', err)
+      }
     }
 
-    schedulePass()
+    startPlayback()
+
     return () => {
       cancelled = true
-      if (timerRef.current) clearTimeout(timerRef.current)
-      killAudioCtx()   // 关闭 AudioContext，立即停止所有已排队音符
+      tonePartsRef.current.forEach(p => p.dispose())
+      tonePartsRef.current = []
+      if (beatTimerRef.current) clearInterval(beatTimerRef.current)
       setShaking(null)
+      // transport.stop 但不 dispose（Tone.js 全局 transport）
+      import('tone').then((Tone) => {
+        Tone.getTransport().stop()
+        Tone.getTransport().cancel()
+      }).catch(() => {})
     }
-  }, [mode, nonSpaceIdx])
+  }, [mode, nonSpaceIdx, spawnHeart])
 
-  /* 钢琴模式点击 */
-  const handleClick = useCallback((i: number, ch: string) => {
+  /* 钢琴模式：点击弹音 */
+  const handleClick = useCallback(async (i: number, ch: string) => {
     if (ch === ' ' || mode === 'doraemon') return
+
     setShaking(null)
     requestAnimationFrame(() => setShaking(i))
     setTimeout(() => setShaking(null), 500)
-    playFreq(PIANO_FREQS[i % PIANO_FREQS.length])
+
+    try {
+      const Tone = await import('tone')
+      const synth = new Tone.Synth({ oscillator: { type: 'triangle' } }).toDestination()
+      synth.triggerAttackRelease(PIANO_NOTE_NAMES[i % PIANO_NOTE_NAMES.length], '8n')
+      setTimeout(() => synth.dispose(), 2000)
+    } catch { /* 静默 */ }
 
     const el  = letterRefs.current[i]
     const box = containerRef.current
