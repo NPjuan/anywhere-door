@@ -58,12 +58,14 @@ function playFreq(freq: number, duration = 0.45) {
   } catch { /* 静默 */ }
 }
 
-// 哆啦A梦中文主题曲「每天过的都一样，偶尔会突发奇想...」
+// 哆啦A梦中文主题曲完整版
 const Q = 400   // 四分音符 ms
 const H = 800   // 二分音符
 const E = 200   // 八分音符
+const DQ = 600  // 附点四分（Q+E）
 
 const DORAEMON_SONG: { note: string; dur: number }[] = [
+  // ── 第一段 ──
   // 每天过的都一样
   { note: 'E4', dur: Q }, { note: 'E4', dur: Q },
   { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
@@ -84,7 +86,31 @@ const DORAEMON_SONG: { note: string; dur: number }[] = [
   { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
   { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
   { note: 'C4', dur: H },
-  // 哆啦A梦，哆啦A梦（副歌）
+
+  // ── 第二段 ──
+  // 叮叮当当叮叮当（过渡）
+  { note: 'G4', dur: E }, { note: 'G4', dur: E },
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'F4', dur: Q }, { note: 'E4', dur: Q },
+  { note: 'E4', dur: H },
+  // 神奇口袋摸一摸
+  { note: 'E4', dur: Q }, { note: 'F4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
+  { note: 'C4', dur: Q }, { note: 'D4', dur: Q },
+  { note: 'E4', dur: H },
+  // 什么宝贝都有
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
+  { note: 'C5', dur: Q }, { note: 'A4', dur: Q },
+  { note: 'G4', dur: Q }, { note: 'E4', dur: Q },
+  { note: 'G4', dur: H },
+  // 随时随地帮助你
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'D4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'C4', dur: H },
+
+  // ── 副歌 ──
+  // 哆啦A梦，哆啦A梦
   { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
   { note: 'C5', dur: E }, { note: 'D5', dur: E }, { note: 'C5', dur: Q },
   { note: 'A4', dur: H },
@@ -96,6 +122,22 @@ const DORAEMON_SONG: { note: string; dur: number }[] = [
   { note: 'C5', dur: Q }, { note: 'A4', dur: Q },
   { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
   { note: 'G4', dur: H },
+  // 随时随地都能帮你
+  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'A4', dur: Q }, { note: 'C5', dur: Q },
+  { note: 'D5', dur: Q }, { note: 'C5', dur: Q },
+  { note: 'A4', dur: DQ }, { note: 'G4', dur: E },
+  { note: 'C5', dur: H },
+
+  // ── 尾声 ──
+  // 哆啦A梦（收尾）
+  { note: 'G4', dur: Q }, { note: 'A4', dur: Q },
+  { note: 'C5', dur: Q }, { note: 'D5', dur: Q },
+  { note: 'E5', dur: Q }, { note: 'D5', dur: Q },
+  { note: 'C5', dur: H },
+  { note: 'A4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'E4', dur: Q }, { note: 'G4', dur: Q },
+  { note: 'C4', dur: H + Q },
 ]
 
 const PIANO_FREQS = [
