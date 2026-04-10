@@ -18,20 +18,19 @@ export function SponsorButton() {
       {/* 触发按钮 */}
       <motion.button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-[96px] z-40 flex items-center gap-1.5 cursor-pointer"
+        className="flex items-center gap-1.5 cursor-pointer w-full"
         style={{
           background:   '#FFFFFF',
           border:       '1px solid #E5E7EB',
-          borderRadius: 20,
+          borderRadius: 8,
           padding:      '7px 14px',
-          boxShadow:    '0 2px 8px rgba(0,0,0,0.08)',
           color:        '#6B7280',
           fontSize:     13,
         }}
-        whileHover={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)', color: '#374151' }}
+        whileHover={{ color: '#374151' }}
         whileTap={{ scale: 0.97 }}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ delay: 0.9 }}
       >
         <Heart size={13} />
@@ -53,7 +52,7 @@ export function SponsorButton() {
 
             {/* 弹窗卡片 */}
             <motion.div
-              className="fixed bottom-20 right-6 z-50 w-64"
+              className="fixed bottom-16 right-6 z-50 w-64"
               style={{
                 background:   '#FFFFFF',
                 border:       '1px solid #E5E7EB',
