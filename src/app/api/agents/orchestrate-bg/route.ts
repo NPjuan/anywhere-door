@@ -5,7 +5,9 @@ import { runPoiAgent, runRoutePlanAgent, runContentAgent, runXhsAgent } from '@/
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
-   直接调用各 Agent 函数（不走内部 HTTP），兼容 Vercel 和自托管
+   两阶段并行策略：
+   - 阶段一（核心）：poi + route 并行，完成后立即触发 synthesis
+   - 阶段二（增强）：tips + xhs 继续跑，synthesis-stream 读取时能用就用
    ============================================================ */
 
 export const maxDuration = 300
@@ -43,70 +45,79 @@ async function runPlanningInBackground(
     synthesis: { status: 'idle',    preview: '' },
   }
 
-  /* ── 并行执行 4 个 Agent（直接调函数，无内部 HTTP）── */
+  // 工具：更新单个 agent 状态并写 DB
+  const updateProgress = async (id: string, patch: { status: string; preview: string }) => {
+    progress[id] = patch
+    await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+  }
+
+  // 工具：把当前结果写入 synthesis waiting
+  const triggerSynthesis = async () => {
+    const poiNames    = (results.poi  as { pois?: Array<{name:string}> }  | null)?.pois?.map(p => p.name).slice(0, 15) ?? []
+    const routeDays   = (results.route as { days?: unknown[] } | null)?.days ?? []
+    const packingTips = (results.tips  as { packingTips?: string[] } | null)?.packingTips?.slice(0, 8) ?? []
+    const warnings    = (results.tips  as { warnings?: string[] } | null)?.warnings?.slice(0, 5) ?? []
+    const xhsNotes    = (results.xhs   as { notes?: unknown[] } | null)?.notes?.slice(0, 4) ?? []
+
+    progress.synthesis = {
+      status: 'waiting',
+      preview: '',
+      input: { originCity, destCity, startDate, endDate, days, prompt, poiNames, routeDays, packingTips, warnings, xhsNotes },
+    }
+    await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
+  }
+
+  /* ── 阶段一：poi + route 并行（核心，synthesis 依赖这两个）── */
   await Promise.allSettled([
-    // POI 推荐
     runPoiAgent({ destination: destCity, prompt, days })
       .then(result => {
         results.poi = result
-        progress.poi = { status: 'done', preview: makePreview('poi', result) }
+        return updateProgress('poi', { status: 'done', preview: makePreview('poi', result) })
       })
-      .catch(err => {
-        console.error('[orchestrate-bg] poi agent failed:', err)
-        progress.poi = { status: 'error', preview: '' }
-      })
-      .finally(() => supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)),
+      .catch(async err => {
+        console.error('[orchestrate-bg] poi failed:', err)
+        await updateProgress('poi', { status: 'error', preview: '' })
+      }),
 
-    // 路线规划
     runRoutePlanAgent({ destination: destCity, travelStyle: prompt, days, pois: [], startDate })
       .then(result => {
         results.route = result
-        progress.route = { status: 'done', preview: makePreview('route', result) }
+        return updateProgress('route', { status: 'done', preview: makePreview('route', result) })
       })
-      .catch(err => {
-        console.error('[orchestrate-bg] route agent failed:', err)
-        progress.route = { status: 'error', preview: '' }
-      })
-      .finally(() => supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)),
+      .catch(async err => {
+        console.error('[orchestrate-bg] route failed:', err)
+        await updateProgress('route', { status: 'error', preview: '' })
+      }),
+  ])
 
-    // 旅行贴士
+  /* ── 阶段一完成，立即触发 synthesis（前端轮询到 waiting 就开始流式输出）── */
+  await triggerSynthesis()
+
+  /* ── 阶段二：tips + xhs 继续跑（synthesis-stream 读取时能用就用）── */
+  // 注意：此时 synthesis 可能已经在跑了，tips/xhs 完成后更新 DB
+  // synthesis-stream 是流式的，实际拿数据在它开始时读一次，所以这里的更新对当次规划无效
+  // 但下次查询该计划时数据会更完整（供调试和未来功能使用）
+  await Promise.allSettled([
     runContentAgent({ destination: destCity, travelStyle: prompt, days })
       .then(result => {
         results.tips = result
-        progress.tips = { status: 'done', preview: makePreview('tips', result) }
+        return updateProgress('tips', { status: 'done', preview: makePreview('tips', result) })
       })
-      .catch(err => {
-        console.error('[orchestrate-bg] tips agent failed:', err)
-        progress.tips = { status: 'error', preview: '' }
-      })
-      .finally(() => supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)),
+      .catch(async err => {
+        console.error('[orchestrate-bg] tips failed:', err)
+        await updateProgress('tips', { status: 'error', preview: '' })
+      }),
 
-    // XHS 笔记
     runXhsAgent({ destination: destCity, prompt, days })
       .then(result => {
         results.xhs = result
-        progress.xhs = { status: 'done', preview: makePreview('xhs', result) }
+        return updateProgress('xhs', { status: 'done', preview: makePreview('xhs', result) })
       })
-      .catch(err => {
-        console.error('[orchestrate-bg] xhs agent failed:', err)
-        progress.xhs = { status: 'error', preview: '' }
-      })
-      .finally(() => supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)),
+      .catch(async err => {
+        console.error('[orchestrate-bg] xhs failed:', err)
+        await updateProgress('xhs', { status: 'error', preview: '' })
+      }),
   ])
-
-  /* ── 准备 synthesis 输入 ── */
-  const poiNames    = (results.poi  as { pois?: Array<{name:string}> }  | null)?.pois?.map(p => p.name).slice(0, 15) ?? []
-  const routeDays   = (results.route as { days?: unknown[] } | null)?.days ?? []
-  const packingTips = (results.tips  as { packingTips?: string[] } | null)?.packingTips?.slice(0, 8) ?? []
-  const warnings    = (results.tips  as { warnings?: string[] } | null)?.warnings?.slice(0, 5) ?? []
-  const xhsNotes    = (results.xhs   as { notes?: unknown[] } | null)?.notes?.slice(0, 4) ?? []
-
-  progress.synthesis = {
-    status: 'waiting',
-    preview: '',
-    input: { originCity, destCity, startDate, endDate, days, prompt, poiNames, routeDays, packingTips, warnings, xhsNotes },
-  }
-  await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
 }
 
 export async function POST(req: NextRequest) {
