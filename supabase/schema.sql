@@ -80,3 +80,16 @@ alter table plans alter column itinerary drop not null;
 -- create policy "设备只能访问自己的计划"
 --   on plans for all
 --   using (device_id = current_setting('app.device_id', true));
+
+
+-- ── 6. feedbacks 表 ──────────────────────────────────────
+
+create table if not exists feedbacks (
+  id         bigserial    primary key,
+  device_id  text         not null,
+  email      text,
+  content    text         not null,
+  created_at timestamptz  not null default now()
+);
+
+create index if not exists feedbacks_created_at_idx on feedbacks (created_at desc);
