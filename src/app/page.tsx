@@ -30,6 +30,7 @@ import { HeroSection } from '@/components/home/HeroSection';
 import { PromptPreviewCard } from '@/components/home/PromptPreviewCard';
 import { PoweredByName } from '@/components/home/PoweredByName';
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
+import { FeedbackButton } from '@/components/ui/FeedbackButton';
 
 export default function HomePage() {
   const {
@@ -722,6 +723,9 @@ export default function HomePage() {
       >
         Powered by <PoweredByName />
       </motion.div>
+
+      {/* 反馈按钮 */}
+      <FeedbackButton />
     </main>
   );
 }
