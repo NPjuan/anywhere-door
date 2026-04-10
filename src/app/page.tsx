@@ -31,6 +31,7 @@ import { PromptPreviewCard } from '@/components/home/PromptPreviewCard';
 import { PoweredByName } from '@/components/home/PoweredByName';
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
+import { SponsorButton } from '@/components/ui/SponsorButton';
 
 export default function HomePage() {
   const {
@@ -726,6 +727,9 @@ export default function HomePage() {
 
       {/* 反馈按钮 */}
       <FeedbackButton />
+
+      {/* 赞助按钮 */}
+      <SponsorButton />
     </main>
   );
 }
