@@ -351,7 +351,7 @@ export default function HomePage() {
                   <PromptPreviewCard
                     isGenerating={step === 'generating'}
                     isPlanning={(step as string) === 'planning'}
-                    prompt={finalPrompt || previewPrompt}
+                    prompt={step === 'generating' ? previewPrompt : finalPrompt}
                     onChange={setFinalPrompt}
                     onBack={goBack}
                     onConfirm={handleConfirm}

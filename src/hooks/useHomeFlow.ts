@@ -63,6 +63,7 @@ function reducer(state: HomeFlowState, action: HomeAction): HomeFlowState {
         ...state,
         step: 'generating',
         previewPrompt: '',
+        finalPrompt:   '',   // 清空旧 finalPrompt，避免流式输出被遮盖
         error: null,
         warning: null,
       };
