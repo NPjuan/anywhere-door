@@ -17,7 +17,7 @@ export const POISchema = z.object({
   name:     z.string(),
   address:  z.string(),
   category: z.string(),
-  latLng:   LatLngSchema,
+  latLng:   LatLngSchema.optional(),   // route-plan 不输出坐标，optional 避免校验失败
   rating:   z.number().optional(),
   hours:    z.string().optional(),
   tips:     z.string().optional(),

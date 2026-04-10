@@ -319,32 +319,19 @@ export default function HomePage() {
               <AnimatePresence>
                 {pendingRestore && step === 'form' && (
                   <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.25 }}
-                    className="flex items-center justify-between px-3 py-2 mt-2 rounded-lg"
-                    style={{ background: '#F8FAFF', border: '1px solid #E2E8F0' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-center mt-2"
                   >
-                    <span className="text-xs" style={{ color: '#94A3B8' }}>
-                      检测到上次的行程输入，是否恢复？
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <button
-                        onClick={confirmRestore}
-                        className="text-xs font-medium cursor-pointer transition-colors hover:opacity-80"
-                        style={{ color: '#2563EB' }}
-                      >
-                        恢复
-                      </button>
-                      <button
-                        onClick={dismissRestore}
-                        className="text-xs cursor-pointer transition-colors hover:opacity-60"
-                        style={{ color: '#CBD5E1' }}
-                      >
-                        忽略
-                      </button>
-                    </div>
+                    <button
+                      onClick={confirmRestore}
+                      className="text-xs cursor-pointer transition-opacity hover:opacity-60"
+                      style={{ color: '#CBD5E1', background: 'none', border: 'none', padding: 0 }}
+                    >
+                      点击恢复上次行程输入
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>

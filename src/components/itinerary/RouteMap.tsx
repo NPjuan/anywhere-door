@@ -53,9 +53,9 @@ export function RouteMap({ dayPlan }: RouteMapProps) {
     ...(dayPlan.afternoon ?? []),
     ...(dayPlan.evening   ?? []),
   ]
-  const pois: POI[] = allActivities
+  const pois = allActivities
     .map((a) => a.poi)
-    .filter((p): p is POI => !!p?.latLng)
+    .filter((p): p is POI & { latLng: { lat: number; lng: number } } => !!p?.latLng)
 
   /* 回到全局视野 */
   const handleFitView = useCallback(() => {
