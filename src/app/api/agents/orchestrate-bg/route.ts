@@ -5,9 +5,11 @@ import { runPoiAgent, runRoutePlanAgent, runContentAgent, runXhsAgent } from '@/
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
-   两阶段并行策略：
-   - 阶段一（核心）：poi + route 并行，完成后立即触发 synthesis
-   - 阶段二（增强）：tips + xhs 继续跑，synthesis-stream 读取时能用就用
+   执行顺序：
+   - poi 先跑，拿到地点列表
+   - route 用 poi 结果规划路线（poi → route 串行）
+   - tips + xhs 与 poi 并行跑（不依赖 poi 结果）
+   - poi + route 完成后立即触发 synthesis，不等 tips/xhs
    ============================================================ */
 
 export const maxDuration = 300
@@ -67,19 +69,26 @@ async function runPlanningInBackground(
     await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
   }
 
-  /* ── 阶段一：poi + route 并行（核心，synthesis 依赖这两个）── */
-  await Promise.allSettled([
-    runPoiAgent({ destination: destCity, prompt, days })
-      .then(result => {
-        results.poi = result
-        return updateProgress('poi', { status: 'done', preview: makePreview('poi', result) })
-      })
-      .catch(async err => {
-        console.error('[orchestrate-bg] poi failed:', err)
-        await updateProgress('poi', { status: 'error', preview: '' })
-      }),
+  /* ── 阶段一：poi（route 依赖它，先跑）── */
+  await runPoiAgent({ destination: destCity, prompt, days })
+    .then(result => {
+      results.poi = result
+      return updateProgress('poi', { status: 'done', preview: makePreview('poi', result) })
+    })
+    .catch(async err => {
+      console.error('[orchestrate-bg] poi failed:', err)
+      await updateProgress('poi', { status: 'error', preview: '' })
+    })
 
-    runRoutePlanAgent({ destination: destCity, travelStyle: prompt, days, pois: [], startDate })
+  /* ── 阶段二：route（用 poi 结果）+ tips + xhs 并行 ── */
+  const poiResult = results.poi as { pois?: Array<{ name: string; address: string; category: string }> } | null
+  const poisForRoute = poiResult?.pois?.map(p => ({
+    name: p.name, address: p.address, category: p.category,
+  })) ?? []
+
+  await Promise.allSettled([
+    // route 用 poi 数据规划
+    runRoutePlanAgent({ destination: destCity, travelStyle: prompt, days, pois: poisForRoute, startDate })
       .then(result => {
         results.route = result
         return updateProgress('route', { status: 'done', preview: makePreview('route', result) })
@@ -88,16 +97,8 @@ async function runPlanningInBackground(
         console.error('[orchestrate-bg] route failed:', err)
         await updateProgress('route', { status: 'error', preview: '' })
       }),
-  ])
 
-  /* ── 阶段一完成，立即触发 synthesis（前端轮询到 waiting 就开始流式输出）── */
-  await triggerSynthesis()
-
-  /* ── 阶段二：tips + xhs 继续跑（synthesis-stream 读取时能用就用）── */
-  // 注意：此时 synthesis 可能已经在跑了，tips/xhs 完成后更新 DB
-  // synthesis-stream 是流式的，实际拿数据在它开始时读一次，所以这里的更新对当次规划无效
-  // 但下次查询该计划时数据会更完整（供调试和未来功能使用）
-  await Promise.allSettled([
+    // tips + xhs 与 route 并行（不依赖 poi 结果）
     runContentAgent({ destination: destCity, travelStyle: prompt, days })
       .then(result => {
         results.tips = result
@@ -118,6 +119,9 @@ async function runPlanningInBackground(
         await updateProgress('xhs', { status: 'error', preview: '' })
       }),
   ])
+
+  /* ── 阶段三：route 完成，触发 synthesis（不等 tips/xhs）── */
+  await triggerSynthesis()
 }
 
 export async function POST(req: NextRequest) {
