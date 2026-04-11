@@ -237,6 +237,20 @@ export function useHomeFlow() {
           body: JSON.stringify({ planId }),
           signal: abortRef.current?.signal,
         });
+
+        // 400 = synthesis input not ready yet (race condition), fall back to polling
+        if (res.status === 400) {
+          synthStreamActiveRef.current = true; // 保持 true，防止轮询再次触发 stream
+          console.warn('[useHomeFlow] synthesis input not ready, falling back to polling');
+          updateAgent('synthesis', {
+            status: 'running',
+            progress: 0,
+            message: '整合行程中...',
+          });
+          startPollingRef.current?.(planId);
+          return;
+        }
+
         if (!res.ok) throw new Error(`synthesis-stream failed (${res.status})`);
 
         const reader = res.body?.getReader();
