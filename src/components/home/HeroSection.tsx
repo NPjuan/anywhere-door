@@ -4,7 +4,6 @@ import { useEffect, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CN_SUBS = [
-  '口袋里装着整个世界，你想去何方',
   '找传说的宝藏，冒险到远方',
   '心中有许多愿望，能够实现有多棒',
   '每天过的都一样，偶尔会突发奇想',
