@@ -299,7 +299,9 @@ export const HomeForm = memo(
                     backgroundColor: '#FAFBFC',
                     outline: 'none',
                     boxShadow: 'none',
-                    resize: 'none',
+                    resize: 'vertical',
+                    minHeight: '3.5rem',
+                    maxHeight: '7rem',
                   }}
                 />
               </div>
