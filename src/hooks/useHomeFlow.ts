@@ -718,26 +718,30 @@ export function useHomeFlow() {
           const synthStatus = progress?.synthesis?.status
           const synthTerminal = synthStatus === 'waiting' || synthStatus === 'running' || synthStatus === 'done'
           const savedAt = detail?.plan?.saved_at ? new Date(detail.plan.saved_at as string).getTime() : 0
-          const isDefinitelyDead = Date.now() - savedAt > 8 * 60 * 1000  // 超过 8 分钟才认为死了
+          const isDefinitelyDead = Date.now() - savedAt > 10 * 60 * 1000  // 超过 10 分钟才认为死了
           const needsRestart = !synthTerminal && isDefinitelyDead
 
-          // 恢复 UI 进度展示
+          // 恢复 UI 进度展示：严格按 DB 里的实际状态渲染，不猜测
           if (progress) {
             Object.entries(progress).forEach(([agentId, state]) => {
+              if (agentId === 'synthesis') {
+                // synthesis 的 waiting 状态在 UI 上显示为 running（即将开始）
+                // 但不在这里触发 stream，由轮询来触发
+                if (state.status === 'waiting') {
+                  updateAgent('synthesis', { status: 'running', progress: 0, message: '整合行程中...' });
+                } else if (state.status === 'done') {
+                  updateAgent('synthesis', { status: 'done', progress: 100, message: '✓ 行程生成完成' });
+                } else {
+                  updateAgent('synthesis', { status: 'idle', progress: 0, message: '等待中...' });
+                }
+                return;
+              }
               if (state.status === 'done') {
-                updateAgent(agentId as AgentId, {
-                  status: 'done',
-                  progress: 100,
-                  message: '✓ 完成',
-                  preview: state.preview ?? '',
-                });
+                updateAgent(agentId as AgentId, { status: 'done', progress: 100, message: '✓ 完成', preview: state.preview ?? '' });
+              } else if (state.status === 'error') {
+                updateAgent(agentId as AgentId, { status: 'error', progress: 100, message: '执行失败' });
               } else {
-                // running / error / idle 都标为 running，因为我们会重新触发或继续轮询
-                updateAgent(agentId as AgentId, {
-                  status: 'running',
-                  progress: 0,
-                  message: 'AI 处理中...',
-                });
+                updateAgent(agentId as AgentId, { status: 'running', progress: 0, message: 'AI 处理中...' });
               }
             })
           } else {
