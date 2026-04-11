@@ -4,12 +4,17 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Pagination, Spin } from 'antd'
-import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X, Share2 } from 'lucide-react'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
+import { ShareSettingsModal } from '@/components/plans/ShareSettingsModal'
 import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
    /plans — 已保存的旅行计划列表（Supabase）分页 + 搜索版
+   
+   Phase 1: Basic Sharing
+   - 新增分享设置按钮 (Share2 icon)
+   - 打开 ShareSettingsModal 配置分享
    ============================================================ */
 
 const PAGE_SIZE = 6
@@ -26,6 +31,7 @@ interface PlanRow {
   budget_low:  number
   budget_high: number
   saved_at:    string
+  share_enabled?: boolean
 }
 
 export default function PlansPage() {
@@ -41,6 +47,11 @@ export default function PlansPage() {
   const [search, setSearch]         = useState('')
   const [searchInput, setSearchInput] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  
+  // Phase 1: Share Settings Modal
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+  const deviceId = getDeviceId()
 
   const fetchPlans = useCallback(async (p = 1, q = search) => {
     setLoading(true)
@@ -112,6 +123,13 @@ export default function PlansPage() {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2200)
     } catch { /* 静默 */ }
+  }
+
+  // Phase 1: Open share settings modal
+  const handleOpenShareSettings = (planId: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    setSelectedPlanId(planId)
+    setShareModalOpen(true)
   }
 
   const from = (page - 1) * PAGE_SIZE + 1
@@ -359,6 +377,21 @@ export default function PlansPage() {
                           {plan.start_date} {plan.end_date && `→ ${plan.end_date}`}
                         </span>
                         <div className="flex items-center gap-1.5">
+                          {/* Phase 1: Share Settings Button */}
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleOpenShareSettings(plan.id, e) }}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
+                            title="分享设置"
+                            style={{
+                              background: 'transparent',
+                              color:      '#94A3B8',
+                              border:     '1px solid transparent',
+                            }}
+                          >
+                            <Share2 size={11} />
+                            <span>分享</span>
+                          </button>
+
                           <button
                             onClick={(e) => { e.preventDefault(); handleCopyLink(plan.id) }}
                             className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
@@ -370,7 +403,7 @@ export default function PlansPage() {
                             }}
                           >
                             {copiedId === plan.id ? <CheckCircle size={11} /> : <Link2 size={11} />}
-                            {copiedId === plan.id ? '已复制' : '分享'}
+                            {copiedId === plan.id ? '已复制' : '复制'}
                           </button>
                           <button
                             onClick={(e) => { e.preventDefault(); handleDelete(plan.id) }}
@@ -408,6 +441,20 @@ export default function PlansPage() {
           </div>
         )}
       </div>
+
+      {/* Phase 1: Share Settings Modal */}
+      {selectedPlanId && (
+        <ShareSettingsModal
+          open={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false)
+            setSelectedPlanId(null)
+          }}
+          planId={selectedPlanId}
+          deviceId={deviceId}
+          onSave={() => fetchPlans(page)}
+        />
+      )}
     </main>
   )
 }

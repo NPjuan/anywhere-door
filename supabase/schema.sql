@@ -38,11 +38,21 @@ alter table plans add column if not exists status          text not null default
 alter table plans add column if not exists planning_params jsonb;
 alter table plans add column if not exists agent_progress  jsonb;  -- 各 agent 完成状态快照
 
+-- 分享功能字段（Phase 1: Basic Sharing）
+alter table plans add column if not exists share_enabled   boolean     default false;  -- 是否开启分享
+alter table plans add column if not exists share_token     text;                       -- 分享令牌（用于验证）
+alter table plans add column if not exists share_expires_at timestamptz;              -- 分享过期时间
+
 -- itinerary 允许为 null（pending 状态下尚无结果）
 alter table plans alter column itinerary drop not null;
 
 
--- ── 4. API 覆盖的操作一览（仅供参考，无需执行）──────────
+-- ── 4. 分享功能索引 ──────────────────────────────────────
+create index if not exists plans_share_token_idx on plans (share_token) where share_token is not null;
+create index if not exists plans_share_enabled_idx on plans (share_enabled) where share_enabled = true;
+
+
+-- ── 5. API 覆盖的操作一览（仅供参考，无需执行）──────────
 --
 -- GET  /api/plans?deviceId=xxx
 --   SELECT id, status, title, summary, destination,
@@ -68,12 +78,14 @@ alter table plans alter column itinerary drop not null;
 --                      budget_low=$5, budget_high=$6,
 --                      itinerary=$7, planning_params=null
 --     WHERE id=$8
+--   情况 C：更新分享设置
+--     UPDATE plans SET share_enabled=$1, share_expires_at=$2 WHERE id=$3
 --
 -- DELETE /api/plans/[id]?deviceId=xxx
 --   DELETE FROM plans WHERE id=$1 AND device_id=$2
 
 
--- ── 5. Row Level Security（可选，按需开启）──────────────
+-- ── 6. Row Level Security（可选，按需开启）──────────────
 
 -- alter table plans enable row level security;
 --
@@ -82,7 +94,7 @@ alter table plans alter column itinerary drop not null;
 --   using (device_id = current_setting('app.device_id', true));
 
 
--- ── 6. feedbacks 表 ──────────────────────────────────────
+-- ── 7. feedbacks 表 ──────────────────────────────────────
 
 create table if not exists feedbacks (
   id         bigserial    primary key,
