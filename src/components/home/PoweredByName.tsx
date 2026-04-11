@@ -82,7 +82,6 @@ export const PoweredByName = memo(({ mode }: Props) => {
   const containerRef  = useRef<HTMLSpanElement>(null)
   const letterRefs    = useRef<(HTMLSpanElement | null)[]>([])
   const tonePartsRef  = useRef<{ dispose: () => void }[]>([])
-  const transportRef  = useRef<{ stop: () => void; dispose: () => void } | null>(null)
   const letterCycleRef = useRef(0)
 
   const spawnNote = useCallback((li: number) => {
@@ -109,12 +108,13 @@ export const PoweredByName = memo(({ mode }: Props) => {
   /* doraemon 模式：播放 MIDI */
   useEffect(() => {
     if (mode !== 'doraemon') {
-      // 停止播放
+      // 停止播放，只清 Part，不 dispose Transport（全局单例，dispose 后无法复用）
       tonePartsRef.current.forEach(p => p.dispose())
       tonePartsRef.current = []
-      transportRef.current?.stop()
-      transportRef.current?.dispose()
-      transportRef.current = null
+      _samplerReady?.then(({ Tone }) => {
+        Tone.getTransport().stop()
+        Tone.getTransport().cancel()
+      }).catch(() => {})
       setShaking(null)
       return
     }
@@ -179,8 +179,10 @@ export const PoweredByName = memo(({ mode }: Props) => {
         tonePartsRef.current = [
           part  as unknown as { dispose: () => void },
         ]
-        transportRef.current = Tone.getTransport() as unknown as { stop: () => void; dispose: () => void }
 
+        // 重置 Transport 位置，确保每次都从 0 开始
+        Tone.getTransport().stop()
+        Tone.getTransport().cancel()
         part.start(0)
         Tone.getTransport().start()
 
@@ -200,8 +202,7 @@ export const PoweredByName = memo(({ mode }: Props) => {
         Tone.getTransport().stop()
         Tone.getTransport().cancel()
       }).catch(() => {})
-    }
-  }, [mode, nonSpaceIdx, spawnNote])
+    }  }, [mode, nonSpaceIdx, spawnNote])
 
   /* 钢琴模式：点击弹音 */
   const handleClick = useCallback(async (i: number, ch: string) => {
