@@ -162,6 +162,7 @@ export function useHomeFlow() {
 
   // 待恢复的表单数据（非 pending 状态，让用户主动确认恢复）
   const [pendingRestore, setPendingRestore] = useState<Partial<SearchParams> | null>(null);
+  const [pendingRestoreFailed, setPendingRestoreFailed] = useState(false);
 
   const {
     updateAgent,
@@ -674,6 +675,7 @@ export function useHomeFlow() {
           } else {
             // done/error/interrupted：不自动填，把数据暂存，等用户主动点击恢复
             setPendingRestore(restorable);
+            setPendingRestoreFailed(latest.status === 'error' || latest.status === 'interrupted');
           }
         }
 
@@ -955,6 +957,7 @@ export function useHomeFlow() {
     if (pendingRestore) {
       restoreSearchParams(pendingRestore);
       setPendingRestore(null);
+      setPendingRestoreFailed(false);
     }
   }, [pendingRestore, restoreSearchParams]);
 
@@ -968,7 +971,8 @@ export function useHomeFlow() {
     reset,
     goBack,
     pendingRestore,
+    pendingRestoreFailed,
     confirmRestore,
-    dismissRestore: () => setPendingRestore(null),
+    dismissRestore: () => { setPendingRestore(null); setPendingRestoreFailed(false); },
   };
 }

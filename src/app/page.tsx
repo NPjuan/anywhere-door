@@ -48,6 +48,7 @@ export default function HomePage() {
     retryAfterFailure,
     goBack,
     pendingRestore,
+    pendingRestoreFailed,
     confirmRestore,
     dismissRestore,
   } = useHomeFlow();
@@ -313,6 +314,11 @@ export default function HomePage() {
                     transition={{ duration: 0.2 }}
                     className="text-center mt-2"
                   >
+                    {pendingRestoreFailed && (
+                      <p className="text-xs mb-0.5" style={{ color: '#EF4444' }}>
+                        上次行程规划失败
+                      </p>
+                    )}
                     <button
                       onClick={confirmRestore}
                       className="text-xs cursor-pointer transition-opacity hover:opacity-60"
