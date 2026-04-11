@@ -160,8 +160,8 @@ export async function runContentAgent(params: {
   for await (const partial of partialObjectStream) {
     if (!throttledProgress) continue
     const tips = partial.packingTips ?? []
-    if (tips.length > 0) {
-      throttledProgress(partial, tips[tips.length - 1])
+    if (tips.length > 0 && tips[tips.length - 1]) {
+      throttledProgress(partial, tips[tips.length - 1]!)
     }
   }
 
