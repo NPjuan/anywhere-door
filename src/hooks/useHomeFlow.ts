@@ -197,6 +197,8 @@ export function useHomeFlow() {
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const synthProgressRef = useRef(0);
+  // ref 指向最新的 startPollingForPlan，供 runSynthesisStream 降级使用
+  const startPollingRef = useRef<((planId: string) => void) | null>(null);
   const pollStateRef = useRef<PollingState>({
     retries: 0,
     maxRetries: 30,
@@ -218,8 +220,7 @@ export function useHomeFlow() {
 
   /* 前端主动流式消费 synthesis */
   const runSynthesisStream = useCallback(
-    async (planId: string) => {
-      try {
+    async (planId: string) => {      try {
         const res = await fetch('/api/agents/synthesis-stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -283,6 +284,27 @@ export function useHomeFlow() {
       } catch (err) {
         synthStreamActiveRef.current = false;
         if ((err as Error).name === 'AbortError') return;
+
+        const msg = (err as Error).message ?? '';
+        const isNetworkSuspend =
+          msg.includes('network error') ||
+          msg.includes('ERR_NETWORK_IO_SUSPENDED') ||
+          msg.includes('Failed to fetch') ||
+          msg.includes('Load failed');
+
+        if (isNetworkSuspend) {
+          // 网络中断（切 Tab / 锁屏）— 服务器侧可能还在跑
+          // 不报错，降级回轮询，等 DB 写入 status=done 时自动完成
+          console.warn('[useHomeFlow] synthesis stream suspended, falling back to polling:', msg);
+          updateAgent('synthesis', {
+            status: 'running',
+            progress: Math.min(synthProgressRef.current, 90),
+            message: '网络波动，等待结果中...',
+          });
+          startPollingRef.current?.(planId);
+          return;
+        }
+
         console.error('[useHomeFlow] synthesis stream error:', err);
         dispatch({ type: 'SET_ERROR', error: '行程汇总失败，请重试' });
       }
@@ -557,8 +579,9 @@ export function useHomeFlow() {
     [updateAgent, startPollingForPlan, stopPolling]
   );
 
-  // 始终保持 ref 指向最新的 runPlanning
+  // 始终保持 ref 指向最新的 runPlanning / startPollingForPlan
   runPlanningRef.current = runPlanning;
+  startPollingRef.current = startPollingForPlan;
 
   /* ─────────────────────────────────────────────────────────
      页面加载：从 DB 恢复状态
