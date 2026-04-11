@@ -679,9 +679,14 @@ export function useHomeFlow() {
 
         // ── pending：继续规划 ──
         if (latest.status === 'pending' && pp) {
-          // 恢复 finalPrompt 仅用于重启 orchestrate-bg 时的参数，不写入 state
-          // 避免 PromptPreviewCard 将含 JSON 的 enrichedPrompt 原样显示
           const savedFinalPrompt = (pp.finalPrompt as string) || ''
+
+          // 恢复 finalPrompt 到 state，但排除微调场景下嵌了整个行程 JSON 的 enrichedPrompt
+          // 微调时 finalPrompt 以"以下是当前已生成的行程方案" 开头，不应展示给用户
+          const isEnrichedRefinePrompt = savedFinalPrompt.includes('以下是当前已生成的行程方案')
+          if (savedFinalPrompt && !isEnrichedRefinePrompt) {
+            dispatch({ type: 'SET_FINAL_PROMPT', prompt: savedFinalPrompt })
+          }
           const progress = detail?.plan?.agent_progress as Record<
             string,
             { status: string; preview: string }
