@@ -167,8 +167,12 @@ async function runPlanningInBackground(
 
 export async function POST(req: NextRequest) {
   // 限流：每个 IP 每分钟最多 5 次（防止 AI 资源滥用）
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? 'unknown'
-  const limit = rateLimit(ip, { limit: 5, windowMs: 60_000 })
+  // 取最后一个非私有 IP，防止代理链伪造
+  const forwarded = req.headers.get('x-forwarded-for')
+  const ip = forwarded
+    ? (forwarded.split(',').map(s => s.trim()).filter(s => s && s !== '127.0.0.1' && s !== '::1').pop() ?? 'unknown')
+    : (req.headers.get('x-real-ip') ?? 'unknown')
+  const limit = await rateLimit(ip, { limit: 5, windowMs: 60_000 })
   if (!limit.ok) {
     return NextResponse.json(
       { error: '请求过于频繁，请稍后再试', retryAfter: Math.ceil((limit.resetAt - Date.now()) / 1000) },
