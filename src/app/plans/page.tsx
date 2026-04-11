@@ -7,6 +7,7 @@ import { Pagination, Spin } from 'antd'
 import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X, Loader2 } from 'lucide-react'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
 import { getDeviceId } from '@/lib/deviceId'
+import { FooterPowered } from '@/components/layout/FooterPowered'
 
 /* ============================================================
    /plans — 已保存的旅行计划列表（Supabase）分页 + 搜索版
@@ -479,6 +480,7 @@ export default function PlansPage() {
           </div>
         )}
       </div>
+      <FooterPowered />
     </main>
   )
 }

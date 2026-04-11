@@ -33,6 +33,7 @@ import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
 import { IntroGuide } from '@/components/ui/IntroGuide';
+import { FooterPowered } from '@/components/layout/FooterPowered';
 
 export default function HomePage() {
   const {
@@ -698,6 +699,9 @@ export default function HomePage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Footer */}
+      <FooterPowered />
 
       {/* 右下角功能按钮组（垂直排列） */}
       <motion.div

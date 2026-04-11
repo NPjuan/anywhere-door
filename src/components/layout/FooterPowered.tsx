@@ -18,6 +18,9 @@ async function getOnDoraemonReady() {
   return _onDoraemonReady
 }
 
+// 模块级持久化 mode，跨页面导航保持状态
+let _persistedMode: 'piano' | 'doraemon' = 'piano'
+
 type FooterMode = 'piano' | 'doraemon'
 
 const FOOTER_RAINBOW = ['#FF6B6B','#FF9F43','#FECA57','#1DD1A1','#54A0FF','#A29BFE','#FD79A8']
@@ -81,7 +84,7 @@ function PoweredFlash() {
 }
 
 export function FooterPowered() {
-  const [mode, setMode] = useState<FooterMode>('piano')
+  const [mode, setMode] = useState<FooterMode>(_persistedMode)
   const [doraemonReady, setDoraemonReady] = useState(false)
 
   useEffect(() => {
@@ -99,7 +102,11 @@ export function FooterPowered() {
       transition={{ duration: 0.4, delay: 0.6 }}
     >
       <span
-        onClick={() => setMode(m => m === 'piano' ? 'doraemon' : 'piano')}
+        onClick={() => {
+          const next = mode === 'piano' ? 'doraemon' : 'piano'
+          _persistedMode = next
+          setMode(next)
+        }}
         className="cursor-pointer inline-flex items-center"
         title={mode === 'piano' ? '切换哆啦A梦模式' : '切换钢琴模式'}
       >

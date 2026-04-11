@@ -13,6 +13,7 @@ import { RouteMap } from '@/components/itinerary/RouteMap'
 import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote'
 import { ExportButton } from '@/components/itinerary/ExportButton'
 import { getDeviceId } from '@/lib/deviceId'
+import { FooterPowered } from '@/components/layout/FooterPowered'
 import type { FullItinerary, XHSNote } from '@/lib/agents/types'
 
 /* ============================================================
@@ -249,6 +250,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
           )}
         </div>
       </div>
+      <FooterPowered />
     </main>
   )
 }

@@ -68,6 +68,68 @@ function preload() {
 interface FloatingNote { id: number; x: number; symbol: string; color: string }
 interface Props { mode: 'piano' | 'doraemon' }
 
+// 模块级音频状态 — 跨组件实例和页面导航持久化
+let _activePart: { dispose: () => void } | null = null
+let _isPlaying = false
+let _beatSec   = 60 / 126  // 在 startDoraemon 里更新
+// 视觉回调：每次组件 mount 时注册，unmount 时注销
+let _onBeat: (() => void) | null = null
+
+// 启动 doraemon 播放（幂等，已在播放则跳过）
+async function startDoraemon(onBeat: () => void) {
+  _onBeat = onBeat
+  if (_isPlaying) return  // 已在播放，只更新视觉回调即可
+
+  preload()
+  const [{ sampler, Tone }, midi] = await Promise.all([_samplerReady!, _midiReady!])
+
+  const bpm = midi.header.tempos[0]?.bpm ?? 126
+  Tone.getTransport().bpm.value = bpm
+  const beatSec = 60 / bpm
+  _beatSec = beatSec
+
+  const track = midi.tracks[0]
+  let lastBeatTime = -1
+  const beatNotes = track.notes.filter(n => {
+    const beatIdx = Math.round(n.time / beatSec)
+    if (beatIdx !== lastBeatTime) { lastBeatTime = beatIdx; return true }
+    return false
+  })
+
+  if (_activePart) { _activePart.dispose(); _activePart = null }
+
+  const part = new Tone.Part((time: number, note: { name: string; duration: number; velocity: number; isBeat?: boolean }) => {
+    sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity)
+    if (!note.isBeat) return
+    const delayMs = Math.max(0, (time - Tone.now()) * 1000)
+    setTimeout(() => { _onBeat?.() }, delayMs)
+  }, [
+    ...track.notes.map(n => ({ time: n.time, name: n.name, duration: n.duration, velocity: n.velocity, isBeat: false })),
+    ...beatNotes.map(n  => ({ time: n.time,  name: n.name,  duration: n.duration,  velocity: n.velocity,  isBeat: true })),
+  ])
+
+  part.loop    = true
+  part.loopEnd = midi.duration
+  _activePart  = part as unknown as { dispose: () => void }
+
+  Tone.getTransport().stop()
+  Tone.getTransport().cancel()
+  part.start(0)
+  Tone.getTransport().start()
+  _isPlaying = true
+}
+
+// 停止 doraemon 播放
+function stopDoraemon() {
+  _onBeat    = null
+  _isPlaying = false
+  if (_activePart) { _activePart.dispose(); _activePart = null }
+  _samplerReady?.then(({ Tone }) => {
+    Tone.getTransport().stop()
+    Tone.getTransport().cancel()
+  }).catch(() => {})
+}
+
 export const PoweredByName = memo(({ mode }: Props) => {
   const name    = 'Pan Junyuan'
   const letters = useMemo(() => name.split(''), [])
@@ -81,7 +143,7 @@ export const PoweredByName = memo(({ mode }: Props) => {
   const counterRef    = useRef(0)
   const containerRef  = useRef<HTMLSpanElement>(null)
   const letterRefs    = useRef<(HTMLSpanElement | null)[]>([])
-  const tonePartsRef  = useRef<{ dispose: () => void }[]>([])
+  const tonePartsRef  = useRef<{ dispose: () => void }[]>([])  // 保留以防万一，不再主动使用
   const letterCycleRef = useRef(0)
 
   const spawnNote = useCallback((li: number) => {
@@ -105,104 +167,34 @@ export const PoweredByName = memo(({ mode }: Props) => {
     preload()
   }, [])
 
-  /* doraemon 模式：播放 MIDI */
+  /* doraemon 模式：播放 MIDI
+     音频状态在模块级管理，组件 unmount 时不停止音频（跨页面持久播放）
+     只在切回钢琴模式时真正停止 */
   useEffect(() => {
     if (mode !== 'doraemon') {
-      // 停止播放，只清 Part，不 dispose Transport（全局单例，dispose 后无法复用）
-      tonePartsRef.current.forEach(p => p.dispose())
-      tonePartsRef.current = []
-      _samplerReady?.then(({ Tone }) => {
-        Tone.getTransport().stop()
-        Tone.getTransport().cancel()
-      }).catch(() => {})
+      stopDoraemon()
       setShaking(null)
       return
     }
 
-    let cancelled = false
-
-    const startPlayback = async () => {
-      try {
-        // 确保预加载已启动（防止 doraemon effect 早于 preload effect 执行）
-        preload()
-        const [{ sampler, Tone }, midi] = await Promise.all([
-          _samplerReady!,
-          _midiReady!,
-        ])
-        if (cancelled) return
-
-        // 设置 BPM
-        const bpm = midi.header.tempos[0]?.bpm ?? 126
-        Tone.getTransport().bpm.value = bpm
-        const beatSec = 60 / bpm
-
-        // 安排所有音符
-        const track = midi.tracks[0]
-
-        // 过滤出"主旋律音符"：每 beatSec 间隔里取第一个音符，用于驱动字母跳动
-        // 这样字母跳动与音符响声严格对应，而不是独立的节拍循环
-        let lastBeatTime = -1
-        const beatNotes = track.notes.filter(n => {
-          const beatIdx = Math.round(n.time / beatSec)
-          if (beatIdx !== lastBeatTime) {
-            lastBeatTime = beatIdx
-            return true
-          }
-          return false
-        })
-
-        const part  = new Tone.Part((time: number, note: { name: string; duration: number; velocity: number; isBeat?: boolean }) => {
-          sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity)
-
-          // 仅在"主旋律"音符时触发字母跳动
-          if (!note.isBeat) return
-          // 用 (time - Tone.now()) 算出距离音符响起还有多少毫秒，setTimeout 精确对齐
-          const delayMs = Math.max(0, (time - Tone.now()) * 1000)
-          setTimeout(() => {
-            if (cancelled) return
-            const li = nonSpaceIdx[letterCycleRef.current % nonSpaceIdx.length]
-            letterCycleRef.current++
-            setShaking(li)
-            setTimeout(() => setShaking(s => s === li ? null : s), beatSec * 600)
-            if (letterCycleRef.current % 3 === 0) spawnNote(li)
-          }, delayMs)
-        }, [
-          // 全部音符（播放音乐）
-          ...track.notes.map(n => ({ time: n.time, name: n.name, duration: n.duration, velocity: n.velocity, isBeat: false })),
-          // 主旋律音符（额外标记，触发视觉）
-          ...beatNotes.map(n  => ({ time: n.time,  name: n.name,  duration: n.duration,  velocity: n.velocity,  isBeat: true })),
-        ])
-
-        part.loop    = true
-        part.loopEnd = midi.duration
-
-        tonePartsRef.current = [
-          part  as unknown as { dispose: () => void },
-        ]
-
-        // 重置 Transport 位置，确保每次都从 0 开始
-        Tone.getTransport().stop()
-        Tone.getTransport().cancel()
-        part.start(0)
-        Tone.getTransport().start()
-
-      } catch (err) {
-        console.error('[PoweredByName] MIDI playback error:', err)
-      }
+    const onBeat = () => {
+      const li = nonSpaceIdx[letterCycleRef.current % nonSpaceIdx.length]
+      letterCycleRef.current++
+      setShaking(li)
+      setTimeout(() => setShaking(s => s === li ? null : s), _beatSec * 600)
+      if (letterCycleRef.current % 3 === 0) spawnNote(li)
     }
 
-    startPlayback()
+    startDoraemon(onBeat).catch(err => {
+      console.error('[PoweredByName] MIDI playback error:', err)
+    })
 
+    // 组件 unmount 时只注销视觉回调，不停止音频
     return () => {
-      cancelled = true
-      tonePartsRef.current.forEach(p => p.dispose())
-      tonePartsRef.current = []
+      _onBeat = null
       setShaking(null)
-      _samplerReady?.then(({ Tone }) => {
-        Tone.getTransport().stop()
-        Tone.getTransport().cancel()
-      }).catch(() => {})
-    }  }, [mode, nonSpaceIdx, spawnNote])
+    }
+  }, [mode, nonSpaceIdx, spawnNote])
 
   /* 钢琴模式：点击弹音 */
   const handleClick = useCallback(async (i: number, ch: string) => {
