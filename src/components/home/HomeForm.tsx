@@ -119,7 +119,7 @@ export const HomeForm = memo(
       (label: string, prompt: string) => {
         // 根据当前 prompt 反推已选的 labels
         const currentSelected = PRESETS.filter(p => params.prompt.includes(p.prompt)).map(p => p.label)
-        const isSelected = currentSelected.includes(label)
+        const isSelected = (currentSelected as string[]).includes(label)
         const next = isSelected
           ? currentSelected.filter(l => l !== label)
           : [...currentSelected, label]

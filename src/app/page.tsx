@@ -12,6 +12,7 @@ import { ExportButton } from '@/components/itinerary/ExportButton';
 import { RefineInput } from '@/components/form/RefineInput';
 import type { Activity } from '@/lib/agents/types';
 import type { XHSNote } from '@/lib/agents/types';
+import { fetchWeather, type DayWeather } from '@/lib/weather';
 import { useHomeFlow } from '@/hooks/useHomeFlow';
 import { useSearchStore } from '@/lib/stores/searchStore';
 import { useItineraryStore } from '@/lib/stores/itineraryStore';
@@ -58,6 +59,24 @@ export default function HomePage() {
   const { itinerary, activeDay, setActiveDay, planId } = useItineraryStore();
   const [planCount, setPlanCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [weatherMap, setWeatherMap] = useState<Map<string, DayWeather>>(new Map());
+
+  // 行程完成后获取天气
+  useEffect(() => {
+    if (!itinerary?.days?.length) return
+    const dates = itinerary.days.map(d => d.date).filter(Boolean) as string[]
+    if (!dates.length) return
+    let lat: number | null = null, lng: number | null = null
+    outer: for (const day of itinerary.days) {
+      for (const act of [...(day.morning ?? []), ...(day.afternoon ?? []), ...(day.evening ?? [])]) {
+        if (act.poi?.latLng?.lat && act.poi?.latLng?.lng) {
+          lat = act.poi.latLng.lat; lng = act.poi.latLng.lng; break outer
+        }
+      }
+    }
+    if (lat === null || lng === null) return
+    fetchWeather(lat, lng, dates).then(setWeatherMap).catch(() => {})
+  }, [itinerary]);
 
   // mounted 后才读 localStorage，避免 SSR/hydration 不一致
   useEffect(() => { setMounted(true); }, []);
@@ -566,6 +585,7 @@ export default function HomePage() {
                         activeDay={activeDay}
                         onDayChange={setActiveDay}
                         refineMode={showRefine}
+                        weatherMap={weatherMap}
                         onActivityClick={(activity) => {
                           const dayIndex = (itinerary.days ?? []).findIndex(
                             (d) =>

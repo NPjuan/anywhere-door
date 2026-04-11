@@ -1,9 +1,10 @@
 'use client';
 
 import { Timeline, ConfigProvider } from 'antd';
-import { Clock, MapPin, DollarSign, Navigation } from 'lucide-react';
+import { Clock, MapPin, DollarSign, Navigation, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, DayPlan } from '@/lib/agents/types';
+import type { DayWeather } from '@/lib/weather';
 
 /* 呼吸灯样式 */
 const BREATHE_STYLE = `
@@ -22,9 +23,10 @@ interface DayTimelineProps {
   onDayChange:       (day: number) => void;
   refineMode?:       boolean;
   onActivityClick?:  (activity: Activity) => void;
+  weatherMap?:       Map<string, DayWeather>  // 可选，按日期查天气
 }
 
-export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick }: DayTimelineProps) {
+export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap }: DayTimelineProps) {
   if (!dayPlans || !Array.isArray(dayPlans) || dayPlans.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-sm" style={{ color: '#94A3B8' }}>
@@ -77,25 +79,48 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
 
       {/* Day 标签页 */}
       <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-        {dayPlans.map((dp, i) => (
-          <button
-            key={i}
-            onClick={() => onDayChange(i)}
-            aria-pressed={i === safeActiveDay}
-            aria-label={`第 ${i + 1} 天：${dp.title}`}
-            className="shrink-0 px-4 py-1.5 text-xs font-medium cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-            style={{
-              background:   i === safeActiveDay ? '#2563EB' : 'transparent',
-              border:       '1px solid',
-              borderColor:  i === safeActiveDay ? '#2563EB' : '#E2E8F0',
-              color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
-              borderRadius: 8,
-            }}
-          >
-            Day {i + 1}
-          </button>
-        ))}
+        {dayPlans.map((dp, i) => {
+          const w = weatherMap?.get(dp.date ?? '')
+          return (
+            <button
+              key={i}
+              onClick={() => onDayChange(i)}
+              aria-pressed={i === safeActiveDay}
+              aria-label={`第 ${i + 1} 天：${dp.title}`}
+              className="shrink-0 px-3 py-1.5 text-xs font-medium cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 flex flex-col items-center gap-0.5"
+              style={{
+                background:   i === safeActiveDay ? '#2563EB' : 'transparent',
+                border:       '1px solid',
+                borderColor:  i === safeActiveDay ? '#2563EB' : '#E2E8F0',
+                color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
+                borderRadius: 8,
+                minWidth:     52,
+              }}
+            >
+              <span>Day {i + 1}</span>
+              {w && (
+                <span className="flex items-center gap-0.5 text-xs leading-none" style={{ opacity: 0.9 }}>
+                  <span>{w.icon}</span>
+                  <span style={{ fontSize: 10 }}>{w.tempMax}°</span>
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
+
+      {/* 恶劣天气警告 */}
+      {(() => {
+        const w = weatherMap?.get(plan.date ?? '')
+        if (!w?.severe) return null
+        return (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs"
+            style={{ background: '#FEF9C3', border: '1px solid #FDE047', color: '#854D0E' }}>
+            <AlertTriangle size={13} className="shrink-0 mt-0.5" style={{ color: '#CA8A04' }} />
+            <span>{w.severeMsg}</span>
+          </div>
+        )
+      })()}
 
       {/* 当天内容 */}
       <AnimatePresence mode="wait" initial={false}>

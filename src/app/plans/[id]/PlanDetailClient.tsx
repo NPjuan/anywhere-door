@@ -14,6 +14,7 @@ import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote'
 import { ExportButton } from '@/components/itinerary/ExportButton'
 import { getDeviceId } from '@/lib/deviceId'
 import { FooterPowered } from '@/components/layout/FooterPowered'
+import { fetchWeather, type DayWeather } from '@/lib/weather'
 import type { FullItinerary, XHSNote } from '@/lib/agents/types'
 
 /* ============================================================
@@ -37,10 +38,35 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
   const [isOwner,   setIsOwner]   = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [saved,     setSaved]     = useState(false)
+  const [weatherMap, setWeatherMap] = useState<Map<string, DayWeather>>(new Map())
 
   useEffect(() => {
     setIsOwner(getDeviceId() === ownerDeviceId)
   }, [ownerDeviceId])
+
+  // 获取天气：用第一天有坐标的 POI 作为目的地坐标
+  useEffect(() => {
+    const dates = (it.days ?? []).map(d => d.date).filter(Boolean) as string[]
+    if (!dates.length) return
+
+    // 找目的地坐标：遍历所有 day 的 activities 找第一个有 latLng 的 POI
+    let lat: number | null = null
+    let lng: number | null = null
+    outer: for (const day of it.days ?? []) {
+      for (const act of [...(day.morning ?? []), ...(day.afternoon ?? []), ...(day.evening ?? [])]) {
+        if (act.poi?.latLng?.lat && act.poi?.latLng?.lng) {
+          lat = act.poi.latLng.lat
+          lng = act.poi.latLng.lng
+          break outer
+        }
+      }
+    }
+    if (lat === null || lng === null) return
+
+    fetchWeather(lat, lng, dates)
+      .then(setWeatherMap)
+      .catch(() => {/* 静默，天气非核心功能 */})
+  }, [it])
 
   const xhsNotes: XHSNote[] =
     (it as unknown as { xhsNotes?: XHSNote[] })?.xhsNotes ??
@@ -187,7 +213,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
           >
             <div className="lg:col-span-3">
               <div className="p-4" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-                <DayTimeline dayPlans={it.days ?? []} activeDay={activeDay} onDayChange={setActiveDay} />
+                <DayTimeline dayPlans={it.days ?? []} activeDay={activeDay} onDayChange={setActiveDay} weatherMap={weatherMap} />
               </div>
             </div>
             <div className="lg:col-span-2">
