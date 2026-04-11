@@ -32,7 +32,7 @@ function preload() {
           A7: 'A7.mp3', C8: 'C8.mp3',
         },
         release: 1,
-        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+        baseUrl: '/piano/',
       }).toDestination()
       await Tone.loaded()
       return { sampler, Tone }
