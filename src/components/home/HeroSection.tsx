@@ -4,7 +4,7 @@ import { useEffect, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const LINES = [
-  { title: '任意门',       sub: '打开任意门，寻找你的世界' },
+  { title: '任意门',       sub: '口袋里装着整个世界，你想去哪里' },
   { title: 'Anywhere Door', sub: 'Open the door, find your world' },
   { title: 'どこでもドア',  sub: 'どこでもドアで、夢の旅へ出発！' },
   { title: 'Porte Magique', sub: 'Ouvre la porte, explore le monde' },
