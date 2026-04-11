@@ -314,17 +314,12 @@ export default function HomePage() {
                     transition={{ duration: 0.2 }}
                     className="text-center mt-2"
                   >
-                    {pendingRestoreFailed && (
-                      <p className="text-xs mb-0.5" style={{ color: '#EF4444' }}>
-                        上次行程规划失败
-                      </p>
-                    )}
                     <button
                       onClick={confirmRestore}
                       className="text-xs cursor-pointer transition-opacity hover:opacity-60"
                       style={{ color: '#94A3B8', background: 'none', border: 'none', padding: 0 }}
                     >
-                      点击恢复上次行程输入
+                      {pendingRestoreFailed ? '上次行程规划失败，点击恢复输入' : '点击恢复上次行程输入'}
                     </button>
                   </motion.div>
                 )}
