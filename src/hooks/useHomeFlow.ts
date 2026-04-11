@@ -228,110 +228,121 @@ export function useHomeFlow() {
     }
   }, []);
 
-  /* 前端主动流式消费 synthesis */
+  /* 前端主动流式消费 synthesis，带自动重试 */
   const runSynthesisStream = useCallback(
-    async (planId: string) => {      try {
-        const res = await fetch('/api/agents/synthesis-stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId }),
-          signal: abortRef.current?.signal,
-        });
+    async (planId: string) => {
+      const MAX_RETRIES = 3;
+      let attempt = 0;
 
-        // 400 = synthesis input not ready yet (race condition), fall back to polling
-        if (res.status === 400) {
-          synthStreamActiveRef.current = true; // 保持 true，防止轮询再次触发 stream
-          console.warn('[useHomeFlow] synthesis input not ready, falling back to polling');
-          updateAgent('synthesis', {
-            status: 'running',
-            progress: 0,
-            message: '整合行程中...',
+      const tryStream = async (): Promise<void> => {
+        try {
+          const res = await fetch('/api/agents/synthesis-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planId }),
+            signal: abortRef.current?.signal,
           });
-          startPollingRef.current?.(planId);
-          return;
-        }
 
-        if (!res.ok) throw new Error(`synthesis-stream failed (${res.status})`);
-
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder();
-        if (!reader) throw new Error('No response body');
-
-        let accumulated = '';
-        let lastMessage = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          if (chunk.includes('__SYNTHESIS_ERROR__')) {
-            throw new Error('Synthesis failed on server');
+          // 400 = synthesis input not ready yet，降级轮询
+          if (res.status === 400) {
+            synthStreamActiveRef.current = true;
+            console.warn('[useHomeFlow] synthesis input not ready, falling back to polling');
+            updateAgent('synthesis', { status: 'running', progress: 0, message: '整合行程中...' });
+            startPollingRef.current?.(planId);
+            return;
           }
-          accumulated += chunk;
-          appendStream(chunk);
 
-          // 提取友好进度文字，避免频繁 setState 导致抖动
-          const msg = getSynthesisProgressMessage(accumulated);
-          if (msg !== lastMessage) {
-            lastMessage = msg;
+          if (!res.ok) throw new Error(`synthesis-stream failed (${res.status})`);
+
+          const reader = res.body?.getReader();
+          const decoder = new TextDecoder();
+          if (!reader) throw new Error('No response body');
+
+          let accumulated = '';
+          let lastMessage = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            if (chunk.includes('__SYNTHESIS_ERROR__')) {
+              throw new Error('Synthesis failed on server');
+            }
+            accumulated += chunk;
+            appendStream(chunk);
+
+            const msg = getSynthesisProgressMessage(accumulated);
+            if (msg !== lastMessage) {
+              lastMessage = msg;
+              updateAgent('synthesis', {
+                status: 'running',
+                progress: Math.min(synthProgressRef.current, 95),
+                message: msg,
+              });
+            }
+            synthProgressRef.current = Math.min(synthProgressRef.current + 0.3, 95);
+          }
+
+          // 流正常结束，从 DB 取最终 itinerary
+          const detail = await fetch(`/api/plans/${planId}`, {
+            headers: { 'x-device-id': getDeviceId() },
+          }).then((r) => r.ok ? r.json() : null);
+
+          if (detail?.plan?.status === 'done' && detail.plan.itinerary) {
+            setItinerary(JSON.stringify(detail.plan.itinerary));
+            setPlanId(planId);
+            updateAgent('synthesis', { status: 'done', progress: 100, message: '✓ 行程生成完成', streamChunk: '' });
+            setComplete(`plan-${planId}`);
+            dispatch({ type: 'PLANNING_DONE' });
+          } else {
+            throw new Error('Itinerary not found after synthesis');
+          }
+
+        } catch (err) {
+          if ((err as Error).name === 'AbortError') return;
+
+          const msg = (err as Error).message ?? '';
+          const isRetryable =
+            msg.includes('network error') ||
+            msg.includes('ERR_NETWORK_IO_SUSPENDED') ||
+            msg.includes('Failed to fetch') ||
+            msg.includes('Load failed') ||
+            msg.includes('timeout') ||
+            msg.includes('timed out');
+
+          if (isRetryable && attempt < MAX_RETRIES) {
+            attempt++;
+            const delayMs = attempt * 2000; // 2s, 4s, 6s
+            console.warn(`[useHomeFlow] synthesis stream error (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delayMs}ms:`, msg);
             updateAgent('synthesis', {
               status: 'running',
-              progress: Math.min(synthProgressRef.current, 95),
-              message: msg,
+              progress: Math.min(synthProgressRef.current, 90),
+              message: `网络波动，${attempt <= 1 ? '重新连接中' : `第 ${attempt} 次重试`}...`,
             });
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            if (abortRef.current?.signal.aborted) return;
+            return tryStream();
           }
-          synthProgressRef.current = Math.min(
-            synthProgressRef.current + 0.3,
-            95
-          );
+
+          // 网络中断但重试耗尽，或切 Tab/锁屏，降级轮询
+          if (isRetryable) {
+            synthStreamActiveRef.current = false;
+            console.warn('[useHomeFlow] synthesis stream retries exhausted, falling back to polling');
+            updateAgent('synthesis', {
+              status: 'running',
+              progress: Math.min(synthProgressRef.current, 90),
+              message: '网络波动，等待结果中...',
+            });
+            startPollingRef.current?.(planId);
+            return;
+          }
+
+          synthStreamActiveRef.current = false;
+          console.error('[useHomeFlow] synthesis stream error:', err);
+          dispatch({ type: 'SET_ERROR', error: '行程汇总失败，请重试' });
         }
+      };
 
-        // 流结束，从 DB 取最终 itinerary
-        const detail = await fetch(`/api/plans/${planId}`, {
-          headers: { 'x-device-id': getDeviceId() },
-        }).then((r) =>
-          r.ok ? r.json() : null
-        );
-        if (detail?.plan?.status === 'done' && detail.plan.itinerary) {
-          setItinerary(JSON.stringify(detail.plan.itinerary));
-          setPlanId(planId);
-          updateAgent('synthesis', {
-            status: 'done',
-            progress: 100,
-            message: '✓ 行程生成完成',
-            streamChunk: '',
-          });
-          setComplete(`plan-${planId}`);
-          dispatch({ type: 'PLANNING_DONE' });
-        } else {
-          throw new Error('Itinerary not found after synthesis');
-        }
-      } catch (err) {
-        synthStreamActiveRef.current = false;
-        if ((err as Error).name === 'AbortError') return;
-
-        const msg = (err as Error).message ?? '';
-        const isNetworkSuspend =
-          msg.includes('network error') ||
-          msg.includes('ERR_NETWORK_IO_SUSPENDED') ||
-          msg.includes('Failed to fetch') ||
-          msg.includes('Load failed');
-
-        if (isNetworkSuspend) {
-          // 网络中断（切 Tab / 锁屏）— 服务器侧可能还在跑
-          // 不报错，降级回轮询，等 DB 写入 status=done 时自动完成
-          console.warn('[useHomeFlow] synthesis stream suspended, falling back to polling:', msg);
-          updateAgent('synthesis', {
-            status: 'running',
-            progress: Math.min(synthProgressRef.current, 90),
-            message: '网络波动，等待结果中...',
-          });
-          startPollingRef.current?.(planId);
-          return;
-        }
-
-        console.error('[useHomeFlow] synthesis stream error:', err);
-        dispatch({ type: 'SET_ERROR', error: '行程汇总失败，请重试' });
-      }
+      await tryStream();
     },
     [updateAgent, appendStream, setItinerary, setPlanId, setComplete]
   );
