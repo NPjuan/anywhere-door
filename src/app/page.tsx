@@ -48,7 +48,8 @@ export default function HomePage() {
     retryAfterFailure,
     goBack,
     pendingRestore,
-    pendingRestoreFailed,
+    pendingRestoreStatus,
+    pendingRestorePlanId,
     confirmRestore,
     dismissRestore,
   } = useHomeFlow();
@@ -304,7 +305,7 @@ export default function HomePage() {
                 isDisabled={step === 'generating' || step === 'prompt-preview' || (step as string) === 'planning'}
               />
 
-              {/* 上次输入恢复提示 */}
+              {/* 上次行程记录提示 */}
               <AnimatePresence>
                 {pendingRestore && step === 'form' && (
                   <motion.div
@@ -319,7 +320,9 @@ export default function HomePage() {
                       className="text-xs cursor-pointer transition-opacity hover:opacity-60"
                       style={{ color: '#94A3B8', background: 'none', border: 'none', padding: 0 }}
                     >
-                      {pendingRestoreFailed ? '上次行程规划失败，点击恢复输入' : '点击恢复上次行程输入'}
+                      {pendingRestoreStatus === 'error' || pendingRestoreStatus === 'interrupted'
+                        ? '上次规划失败，点击恢复输入'
+                        : '使用上次行程输入'}
                     </button>
                   </motion.div>
                 )}

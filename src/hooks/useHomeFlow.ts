@@ -162,7 +162,8 @@ export function useHomeFlow() {
 
   // 待恢复的表单数据（非 pending 状态，让用户主动确认恢复）
   const [pendingRestore, setPendingRestore] = useState<Partial<SearchParams> | null>(null);
-  const [pendingRestoreFailed, setPendingRestoreFailed] = useState(false);
+  const [pendingRestoreStatus, setPendingRestoreStatus] = useState<'done' | 'error' | 'interrupted' | null>(null);
+  const [pendingRestorePlanId, setPendingRestorePlanId] = useState<string | null>(null);
 
   const {
     updateAgent,
@@ -673,10 +674,22 @@ export function useHomeFlow() {
             // pending 状态：自动恢复（用户本来就在规划中，需要无感继续）
             restoreSearchParams(restorable);
           } else {
-            // done/error/interrupted：不自动填，把数据暂存，等用户主动点击恢复
+            // error/interrupted：有 planning_params，可恢复表单
             setPendingRestore(restorable);
-            setPendingRestoreFailed(latest.status === 'error' || latest.status === 'interrupted');
+            setPendingRestoreStatus(latest.status as 'error' | 'interrupted');
+            setPendingRestorePlanId(latest.id);
           }
+        } else if (latest.status === 'done') {
+          // done 状态：planning_params 已清空，用 searchStore 当前值或 plan 基础字段构造
+          const destCity = findCityByCode(latest.destination ?? '') ?? null;
+          const restorable: Partial<SearchParams> = {
+            destination: destCity,
+            startDate:   (latest.start_date as string) || '',
+            endDate:     (latest.end_date   as string) || '',
+          };
+          setPendingRestore(restorable);
+          setPendingRestoreStatus('done');
+          setPendingRestorePlanId(latest.id);
         }
 
         // ── pending：继续规划 ──
@@ -957,7 +970,8 @@ export function useHomeFlow() {
     if (pendingRestore) {
       restoreSearchParams(pendingRestore);
       setPendingRestore(null);
-      setPendingRestoreFailed(false);
+      setPendingRestoreStatus(null);
+      setPendingRestorePlanId(null);
     }
   }, [pendingRestore, restoreSearchParams]);
 
@@ -971,8 +985,9 @@ export function useHomeFlow() {
     reset,
     goBack,
     pendingRestore,
-    pendingRestoreFailed,
+    pendingRestoreStatus,
+    pendingRestorePlanId,
     confirmRestore,
-    dismissRestore: () => { setPendingRestore(null); setPendingRestoreFailed(false); },
+    dismissRestore: () => { setPendingRestore(null); setPendingRestoreStatus(null); setPendingRestorePlanId(null); },
   };
 }
