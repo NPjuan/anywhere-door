@@ -11,11 +11,11 @@ const CN_SUBS = [
 ]
 
 const LINES = [
-  { title: '任意门',        sub: null },           // null = 从 CN_SUBS 轮流取
-  { title: 'Anywhere Door', sub: 'Open the door, find your world' },
-  { title: 'どこでもドア',  sub: 'どこでもドアで、夢の旅へ出発！' },
-  { title: 'Porte Magique', sub: 'Ouvre la porte, explore le monde' },
-  { title: '어디든 문',    sub: '이 문을 열면, 꿈의 여행이 시작돼' },
+  { title: '任意门',        sub: null },
+  { title: 'Anywhere Door', sub: 'Open the door, explore and soar' },
+  { title: 'どこでもドア',     sub: 'どこでもドアで、どこへでもドア！' },
+  { title: 'La Porte Magique', sub: 'Ouvre la porte, pars à l\'aventure' },
+  { title: '어디로든 문',      sub: '문을 열면 세상이 열려, 어디로든 가자' },
 ];
 
 export const HeroSection = memo(() => {

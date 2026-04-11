@@ -45,6 +45,30 @@ const PRESETS = [
     prompt:
       '我希望深度了解当地历史文化，参观博物馆、古迹遗址和传统市集，体验当地民俗活动和非遗文化。',
   },
+  {
+    icon: '🌅',
+    label: '早起型',
+    prompt:
+      '我习惯早起，请将需要排队或人少的景点安排在早上 7-9 点，充分利用清晨时光，避开人潮，每天可以安排得充实一些。',
+  },
+  {
+    icon: '🌙',
+    label: '晚起型',
+    prompt:
+      '我喜欢睡到自然醒，每天上午 10 点以后再开始行程，不要安排需要早起的活动，晚上可以延伸到夜市或夜景，节奏轻松不赶。',
+  },
+  {
+    icon: '👨‍👩‍👧',
+    label: '亲子出行',
+    prompt:
+      '这是一次带孩子的家庭旅行，请优先安排亲子友好的景点、互动体验和主题乐园，避免长距离步行，注意饮食和休息安排。',
+  },
+  {
+    icon: '💑',
+    label: '情侣旅行',
+    prompt:
+      '这是一次两人浪漫旅行，多安排有氛围感的餐厅、网红打卡点和私密景区，适当加入日落、观景台等浪漫场景。',
+  },
 ] as const;
 
 interface HomeFormProps {
@@ -92,8 +116,16 @@ export const HomeForm = memo(
       [setPrompt]
     );
     const handlePresetClick = useCallback(
-      (prompt: string) => setPrompt(prompt),
-      [setPrompt]
+      (label: string, prompt: string) => {
+        // 根据当前 prompt 反推已选的 labels
+        const currentSelected = PRESETS.filter(p => params.prompt.includes(p.prompt)).map(p => p.label)
+        const isSelected = currentSelected.includes(label)
+        const next = isSelected
+          ? currentSelected.filter(l => l !== label)
+          : [...currentSelected, label]
+        setPrompt(next.map(l => PRESETS.find(p => p.label === l)!.prompt).join(' '))
+      },
+      [setPrompt, params.prompt]
     );
     const handleSetHotelPOI = useCallback(
       (p: PlacePOI | PlacePOI[] | null) => {
@@ -230,41 +262,43 @@ export const HomeForm = memo(
 
               {/* ── 旅行主题 ── */}
               <div className="mt-4">
-                {/* 快速预设在上 */}
-                <div className="flex items-center flex-wrap gap-2 mb-2">
-                  <span
-                    className="text-xs shrink-0"
-                    style={{ color: '#6B7280' }}
-                  >
-                    旅行风格
-                  </span>
-                  {PRESETS.map((p) => {
-                    const isActive = params.prompt === p.prompt;
-                    return (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => handlePresetClick(p.prompt)}
-                        className="text-xs px-2.5 py-1 cursor-pointer transition-all"
-                        style={{
-                          borderRadius: 6,
-                          background: isActive ? '#EFF6FF' : '#F3F4F6',
-                          border: isActive
-                            ? '1px solid #BFDBFE'
-                            : '1px solid #E5E7EB',
-                          color: isActive ? '#2563EB' : '#6B7280',
-                        }}
-                      >
-                        <span className="mr-1">{p.icon}</span>
-                        {p.label}
-                      </button>
-                    );
-                  })}
-                  {/* 人数 — 靠右 */}
+                {/* 旅行风格 + 人数 — 一行，标签区横向滚动，人数固定右侧 */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs shrink-0" style={{ color: '#6B7280' }}>旅行风格</span>
+                  {/* 标签滚动区 + 右侧渐变提示 */}
+                  <div className="relative" style={{ maxWidth: '60%' }}>
+                    <div
+                      className="flex items-center gap-1.5"
+                      style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
+                    >
+                      {PRESETS.map((p) => {
+                        const isActive = params.prompt.includes(p.prompt);
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => handlePresetClick(p.label, p.prompt)}
+                            className="text-xs px-2.5 py-1 cursor-pointer transition-all shrink-0"
+                            style={{
+                              borderRadius: 6,
+                              background: isActive ? '#EFF6FF' : '#F3F4F6',
+                              border: isActive ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+                              color: isActive ? '#2563EB' : '#6B7280',
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* 右侧渐变提示可滑动 */}
+                    <div
+                      className="absolute right-0 top-0 bottom-0 pointer-events-none"
+                      style={{ width: 40, background: 'linear-gradient(to right, transparent, #FFFFFF)' }}
+                    />
+                  </div>
                   <div className="ml-auto flex items-center gap-1 shrink-0">
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>
-                      共
-                    </span>
+                    <span className="text-xs" style={{ color: '#9CA3AF' }}>共</span>
                     <InputNumber
                       min={1}
                       max={20}
@@ -280,9 +314,7 @@ export const HomeForm = memo(
                         borderRadius: 4,
                       }}
                     />
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>
-                      人出行
-                    </span>
+                    <span className="text-xs" style={{ color: '#9CA3AF' }}>人出行</span>
                   </div>
                 </div>
                 <textarea
