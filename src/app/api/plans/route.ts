@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     itinerary:      z.record(z.string(), z.unknown()).optional(),
     planningParams: z.record(z.string(), z.unknown()).optional(),
     status:         z.enum(['pending', 'done', 'error', 'interrupted']).optional(),
+    aiModel:        z.enum(['deepseek', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1', 'claude']).optional(),
   })
 
   const parsed = schema.safeParse(body)
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })
   }
 
-  const { deviceId, itinerary, planningParams, status } = parsed.data
+  const { deviceId, itinerary, planningParams, status, aiModel } = parsed.data
 
   const id = `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const planStatus = status ?? (itinerary ? 'done' : 'pending')
@@ -109,6 +110,7 @@ export async function POST(req: NextRequest) {
     budget_high:     (itinerary?.budget as { high?: number })?.high ?? 0,
     itinerary:       itinerary ?? null,
     planning_params: planningParams ?? null,
+    ai_model:        aiModel ?? 'deepseek',
     saved_at:        new Date().toISOString(),
   })
 

@@ -4,6 +4,7 @@ import { POPULAR_CITIES } from '@/lib/cities'
 import { supabase } from '@/lib/supabase'
 import { runPoiAgent, runRoutePlanAgent, runContentAgent, runXhsAgent } from '@/lib/agents/runners'
 import { rateLimit } from '@/lib/rateLimit'
+import type { AIProvider } from '@/lib/agents/utils'
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
@@ -33,6 +34,7 @@ async function runPlanningInBackground(
   startDate:       string,
   endDate:         string,
   prompt:          string,
+  model?:          AIProvider,
 ) {
   const destCity   = POPULAR_CITIES.find(c => c.code === destinationCode)?.name ?? destinationCode
   const originCity = POPULAR_CITIES.find(c => c.code === originCode)?.name ?? originCode
@@ -83,6 +85,7 @@ async function runPlanningInBackground(
     destination: destCity,
     prompt,
     days,
+    model,
     onProgress: async (_partial, message) => {
       progress.poi = { ...progress.poi, status: 'running', preview: message }
       await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
@@ -110,6 +113,7 @@ async function runPlanningInBackground(
       days,
       pois: poisForRoute,
       startDate,
+      model,
       onProgress: async (_partial, message) => {
         progress.route = { ...progress.route, status: 'running', preview: message }
         await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
@@ -128,6 +132,7 @@ async function runPlanningInBackground(
       destination: destCity,
       travelStyle: prompt,
       days,
+      model,
       onProgress: async (_partial, message) => {
         progress.tips = { ...progress.tips, status: 'running', preview: message }
         await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
@@ -146,6 +151,7 @@ async function runPlanningInBackground(
       destination: destCity,
       prompt,
       days,
+      model,
       onProgress: async (_partial, message) => {
         progress.xhs = { ...progress.xhs, status: 'running', preview: message }
         await supabase.from('plans').update({ agent_progress: { ...progress } }).eq('id', planId)
@@ -189,6 +195,7 @@ export async function POST(req: NextRequest) {
     startDate:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
     endDate:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
     prompt:          z.string().default(''),
+    model:           z.enum(['deepseek', 'claude', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1']).optional(),
   })
 
   const parsed = schema.safeParse(body)
@@ -196,8 +203,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })
   }
 
-  const { planId, originCode, destinationCode, startDate, endDate, prompt } = parsed.data
-  await runPlanningInBackground(planId, originCode, destinationCode, startDate, endDate, prompt)
+  const { planId, originCode, destinationCode, startDate, endDate, prompt, model } = parsed.data
+  await runPlanningInBackground(planId, originCode, destinationCode, startDate, endDate, prompt, model as AIProvider | undefined)
 
   return NextResponse.json({ ok: true, planId }, { status: 200 })
 }

@@ -2,8 +2,10 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { streamText } from 'ai'
-import { getAIProvider } from '@/lib/agents/utils'
+import { getAIProvider, getModelConfig, patchSystemForGLM, zodToExample } from '@/lib/agents/utils'
+import type { AIProvider } from '@/lib/agents/utils'
 import { SYNTHESIS_SYSTEM_PROMPT } from '@/lib/agents/prompts'
+import { FullItinerarySchema } from '@/lib/agents/types'
 import { supabase } from '@/lib/supabase'
 import { parseJSON } from '@/lib/utils/jsonParse'
 
@@ -43,6 +45,10 @@ export async function POST(req: NextRequest) {
   if (!synthInput) {
     return new Response(JSON.stringify({ error: 'Synthesis input not ready' }), { status: 400 })
   }
+
+  // 读取规划时选择的模型（独立列）
+  const { data: planData } = await supabase.from('plans').select('ai_model, planning_params').eq('id', planId).single()
+  const savedModel = (planData?.ai_model ?? (planData?.planning_params as Record<string, unknown> | null)?.model) as AIProvider | undefined
 
   const {
     originCity, destCity, startDate, endDate, days, prompt,
@@ -165,10 +171,16 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        const cfg = getModelConfig(savedModel)
+        const isGLM = savedModel?.startsWith('glm') ?? false
+        const fullSystem = isGLM
+          ? patchSystemForGLM(SYNTHESIS_SYSTEM_PROMPT, FullItinerarySchema)
+          : SYNTHESIS_SYSTEM_PROMPT
         const result = streamText({
-          model:           getAIProvider(),
-          maxOutputTokens: 8000,
-          system: SYNTHESIS_SYSTEM_PROMPT,
+          model:           getAIProvider(savedModel),
+          temperature:     cfg.temperature,
+          maxOutputTokens: cfg.maxOutputTokens ?? 8000,
+          system:          fullSystem,
           prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${arrivalWarning}${departureWarning}
 
 出发地：${originCity}，目的地：${destCity}

@@ -1,5 +1,4 @@
-import { streamObject } from 'ai'
-import { getAIProvider } from '@/lib/agents/utils'
+import { unifiedStreamObject } from '@/lib/agents/utils'
 import { getAmapClient } from '@/lib/api/maps/AmapClient'
 import {
   poiSystemPrompt,
@@ -14,11 +13,12 @@ import {
   XHSAgentOutputSchema,
 } from '@/lib/agents/types'
 import type { z } from 'zod'
+import type { AIProvider } from '@/lib/agents/utils'
 import type { DeepPartial } from 'ai'
 
 /* ============================================================
    Agent 核心逻辑函数 — 直接调用，不走 HTTP
-   使用 streamObject 实现流式进度回调
+   使用 unifiedStreamObject 实现流式进度回调（兼容 GLM）
    ============================================================ */
 
 export type StyleOutput   = z.infer<typeof StyleAgentOutputSchema>
@@ -38,11 +38,7 @@ function throttle<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   }
 }
 
-/* 带重试的 agent 执行包装
-   - 最多重试 MAX_RETRIES 次
-   - 每次重试等待 RETRY_DELAY_MS * attempt 毫秒（线性退避）
-   - 每次失败都打印结构化日志
-*/
+/* 带重试的 agent 执行包装 */
 const MAX_RETRIES    = 2
 const RETRY_DELAY_MS = 3000
 
@@ -79,8 +75,9 @@ export async function runPoiAgent(params: {
   prompt:       string
   days:         number
   onProgress?:  ProgressCallback<StyleOutput>
+  model?:       AIProvider
 }): Promise<StyleOutput> {
-  const { destination, prompt, days, onProgress } = params
+  const { destination, prompt, days, onProgress, model } = params
 
   let candidatePOIs: { name: string; category: string; address: string; latLng?: { lat: number; lng: number } }[] = []
   try {
@@ -89,18 +86,16 @@ export async function runPoiAgent(params: {
     candidatePOIs = pois
   } catch { /* Amap 失败不影响 AI 生成 */ }
 
-  const throttledProgress = onProgress
-    ? throttle(onProgress, 1500)
-    : null
+  const throttledProgress = onProgress ? throttle(onProgress, 1500) : null
 
   return withRetry('poi', async () => {
-    const { partialObjectStream, object } = streamObject({
-      model:  getAIProvider(),
+    const { partialObjectStream, object } = await unifiedStreamObject({
+      model,
+      schema: StyleAgentOutputSchema,
       system: poiSystemPrompt(destination, prompt),
       prompt: `目的地：${destination}，${days}天行程，用户诉求：${prompt}
 已获取的候选地点：${JSON.stringify(candidatePOIs.map(p => ({ name: p.name, category: p.category, address: p.address })))}
 请根据用户诉求筛选最合适的地点，生成风格主题和亮点，并补充 AI 知识库中的著名地点`,
-      schema: StyleAgentOutputSchema,
     })
 
     for await (const partial of partialObjectStream) {
@@ -131,8 +126,9 @@ export async function runRoutePlanAgent(params: {
   pois:         Array<{ name: string; address: string; category: string }>
   startDate:    string
   onProgress?:  ProgressCallback<RouteOutput>
+  model?:       AIProvider
 }): Promise<RouteOutput> {
-  const { destination, travelStyle, days, pois, startDate, onProgress } = params
+  const { destination, travelStyle, days, pois, startDate, onProgress, model } = params
 
   const lines = (travelStyle || '').split('\n')
   const constraintLines = lines.filter((l: string) => /^\[.+\]/.test(l.trim()))
@@ -141,20 +137,18 @@ export async function runRoutePlanAgent(params: {
     ? `\n\n⚠️ 以下约束必须严格体现在行程中：\n${constraintLines.map((l: string) => `- ${l.trim()}`).join('\n')}`
     : ''
 
-  const throttledProgress = onProgress
-    ? throttle(onProgress, 1500)
-    : null
+  const throttledProgress = onProgress ? throttle(onProgress, 1500) : null
 
   return withRetry('route', async () => {
-    const { partialObjectStream, object } = streamObject({
-      model:  getAIProvider(),
+    const { partialObjectStream, object } = await unifiedStreamObject({
+      model,
+      schema: RoutePlanOutputSchema,
       system: ROUTE_SYSTEM_PROMPT,
       prompt: `目的地：${destination}，旅行风格：${coreStyle || '轻松愉快'}，天数：${days}天，起始日期：${startDate || '未知'}${constraintSection}
 可用POI列表：${JSON.stringify(pois.map(p => ({ name: p.name, address: p.address, category: p.category })))}
 请规划 ${days} 天的详细行程，每天3-5个活动，合理安排上午/下午/晚上。
 每天的 date 字段必须填写实际日期（YYYY-MM-DD 格式），第1天为 ${startDate || '未知'}，依次递增。
 活动中不需要填写 poi 字段，只需填写 time、name、description、duration、cost、transport 即可。`,
-      schema: RoutePlanOutputSchema,
     })
 
     for await (const partial of partialObjectStream) {
@@ -178,19 +172,18 @@ export async function runContentAgent(params: {
   travelStyle:  string
   days:         number
   onProgress?:  ProgressCallback<ContentOutput>
+  model?:       AIProvider
 }): Promise<ContentOutput> {
-  const { destination, travelStyle, days, onProgress } = params
+  const { destination, travelStyle, days, onProgress, model } = params
 
-  const throttledProgress = onProgress
-    ? throttle(onProgress, 1500)
-    : null
+  const throttledProgress = onProgress ? throttle(onProgress, 1500) : null
 
   return withRetry('tips', async () => {
-    const { partialObjectStream, object } = streamObject({
-      model:  getAIProvider(),
+    const { partialObjectStream, object } = await unifiedStreamObject({
+      model,
+      schema: ContentAgentOutputSchema,
       system: tipsSystemPrompt(destination, travelStyle),
       prompt: `为 ${destination} ${days} 天旅行生成打包建议和注意事项`,
-      schema: ContentAgentOutputSchema,
     })
 
     for await (const partial of partialObjectStream) {
@@ -211,19 +204,18 @@ export async function runXhsAgent(params: {
   prompt:       string
   days:         number
   onProgress?:  ProgressCallback<XHSOutput>
+  model?:       AIProvider
 }): Promise<XHSOutput> {
-  const { destination, prompt, days, onProgress } = params
+  const { destination, prompt, days, onProgress, model } = params
 
-  const throttledProgress = onProgress
-    ? throttle(onProgress, 1500)
-    : null
+  const throttledProgress = onProgress ? throttle(onProgress, 1500) : null
 
   return withRetry('xhs', async () => {
-    const { partialObjectStream, object } = streamObject({
-      model:  getAIProvider(),
+    const { partialObjectStream, object } = await unifiedStreamObject({
+      model,
+      schema: XHSAgentOutputSchema,
       system: xhsSystemPrompt(destination, prompt, days),
       prompt: `为 ${destination} ${days} 天旅行生成 3-4 篇小红书风格攻略笔记，完全贴合用户诉求：${prompt}`,
-      schema: XHSAgentOutputSchema,
     })
 
     for await (const partial of partialObjectStream) {

@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     arrivalTime,
     departureTime,
     travelers,
+    model,
   } = await req.json()
 
   const originCity = POPULAR_CITIES.find((c) => c.code === originCode)?.name ?? originCode
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
     : ''
 
   const result = streamText({
-    model: getAIProvider(),
+    model: getAIProvider(model),
     system: `你是"任意门"AI旅行规划助手。
 用户填写了基础旅行信息后，你需要将这些信息整理成一段清晰、结构化的行程规划诉求描述。
 

@@ -35,6 +35,7 @@ import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
 import { IntroGuide } from '@/components/ui/IntroGuide';
 import { FooterPowered } from '@/components/layout/FooterPowered';
+import { ModelSelector } from '@/components/ui/ModelSelector';
 
 export default function HomePage() {
   const {
@@ -262,21 +263,22 @@ export default function HomePage() {
       <LightBackground />
 
       <div className="relative" style={{ zIndex: 1 }}>
-        {/* 左上角 — 用户 ID */}
+        {/* 左上角 — 用户 ID + 模型标签 */}
         <motion.div
-          className="fixed top-5 left-5"
+          className="fixed top-5 left-5 flex flex-col items-start gap-2"
           style={{ zIndex: 50 }}
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
           {deviceIdShort && <DeviceIdBadge id={deviceIdShort} />}
+          <ModelSelector />
         </motion.div>
 
         {/* 右上角 — 我的计划入口（有 deviceId 且有计划时才显示）*/}
         {deviceIdShort && (
           <motion.div
-            className="fixed top-5 right-5"
+            className="fixed top-5 right-5 flex items-center gap-2"
             style={{ zIndex: 50 }}
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}

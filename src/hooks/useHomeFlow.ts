@@ -621,6 +621,7 @@ export function useHomeFlow() {
             startDate: params.startDate,
             endDate: params.endDate,
             prompt: params.finalPrompt,
+            model: useSearchStore.getState().params.aiModel,
           }),
         });
         if (!res.ok) throw new Error(`规划失败 (${res.status})`);
@@ -883,7 +884,10 @@ export function useHomeFlow() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: abortRef.current.signal,
-          body: JSON.stringify(params),
+          body: JSON.stringify({
+            ...params,
+            model: useSearchStore.getState().params.aiModel,
+          }),
         });
         if (!res.ok) throw new Error(`生成失败 (${res.status})`);
 
@@ -949,6 +953,7 @@ export function useHomeFlow() {
             body: JSON.stringify({
               deviceId,
               status: 'pending',
+              aiModel: searchParams.aiModel,
               planningParams: {
                 ...params,
                 // 完整表单字段（城市对象、机场、航班时间、酒店、必经地点等）

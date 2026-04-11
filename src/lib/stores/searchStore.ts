@@ -36,6 +36,7 @@ export interface SearchParams {
   mustAvoid:     PlacePOI[];
   arrivalTime:   string;   // HH:mm，落地时间（选填）
   departureTime: string;   // HH:mm，返程起飞时间（选填）
+  aiModel:       'deepseek' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude';  // AI 模型选择
 }
 
 interface SearchStore {
@@ -50,6 +51,7 @@ interface SearchStore {
   setMustAvoid:     (pois: PlacePOI[]) => void;
   setArrivalTime:   (t: string) => void;
   setDepartureTime: (t: string) => void;
+  setAiModel:       (m: 'deepseek' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude') => void;
   swapCities:       () => void;
   reset:            () => void;
   restore:          (partial: Partial<SearchParams>) => void;
@@ -69,6 +71,7 @@ export const defaultSearchParams: SearchParams = {
   mustAvoid:     [],
   arrivalTime:   '',
   departureTime: '',
+  aiModel:       'deepseek',
 };
 
 export const useSearchStore = create<SearchStore>()((set, get) => ({
@@ -84,6 +87,7 @@ export const useSearchStore = create<SearchStore>()((set, get) => ({
   setMustAvoid:     (pois) => set((s) => ({ params: { ...s.params, mustAvoid: pois } })),
   setArrivalTime:   (t) => set((s) => ({ params: { ...s.params, arrivalTime: t } })),
   setDepartureTime: (t) => set((s) => ({ params: { ...s.params, departureTime: t } })),
+  setAiModel:       (m) => set((s) => ({ params: { ...s.params, aiModel: m } })),
 
   swapCities: () => set((s) => ({
     params: { ...s.params, origin: s.params.destination, destination: s.params.origin },
