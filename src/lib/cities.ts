@@ -27,7 +27,7 @@ const CITY_PRIMARY: Record<string, string> = {
   '大连':    'DLC',
   '福州':    'FOC',
   '南宁':    'NNG',
-  '贵阳':    'GYN',
+  '贵阳':    'KWE',
   '海口':    'HAK',
   '三亚':    'SYX',
   '乌鲁木齐': 'URC',
@@ -56,6 +56,26 @@ const CITY_PRIMARY: Record<string, string> = {
   '西宁':    'XNN',
   '喀什':    'KHG',
   '敦煌':    'DNH',
+  // 日本
+  '东京':    'NRT',
+  '大阪':    'KIX',
+  '京都':    'ITM',
+  '札幌':    'CTS',
+  '福冈':    'FUK',
+  '名古屋':  'NGO',
+  '冲绳':    'OKA',
+  // 韩国
+  '首尔':    'ICN',
+  '釜山':    'PUS',
+  '济州':    'CJU',
+  // 美国
+  '纽约':    'JFK',
+  '洛杉矶':  'LAX',
+  '旧金山':  'SFO',
+  '拉斯维加斯': 'LAS',
+  '芝加哥':  'ORD',
+  '迈阿密':  'MIA',
+  '夏威夷':  'HNL',
 }
 
 export const POPULAR_CITIES: CityOption[] = [
@@ -169,6 +189,32 @@ export const POPULAR_CITIES: CityOption[] = [
   // ── 台北 ──
   { code: 'TPE', name: '台北',    nameEn: 'Taipei',      airport: '桃园国际机场',       country: '中国' },
   { code: 'TSA', name: '台北',    nameEn: 'Taipei',      airport: '松山机场',           country: '中国' },
+
+  // ══ 日本 ══
+  { code: 'NRT', name: '东京',    nameEn: 'Tokyo',       airport: '成田国际机场',       country: '日本' },
+  { code: 'HND', name: '东京',    nameEn: 'Tokyo',       airport: '羽田机场',           country: '日本' },
+  { code: 'KIX', name: '大阪',    nameEn: 'Osaka',       airport: '关西国际机场',       country: '日本' },
+  { code: 'ITM', name: '大阪',    nameEn: 'Osaka',       airport: '伊丹机场',           country: '日本' },
+  { code: 'CTS', name: '札幌',    nameEn: 'Sapporo',     airport: '新千岁机场',         country: '日本' },
+  { code: 'FUK', name: '福冈',    nameEn: 'Fukuoka',     airport: '福冈机场',           country: '日本' },
+  { code: 'NGO', name: '名古屋',  nameEn: 'Nagoya',      airport: '中部国际机场',       country: '日本' },
+  { code: 'OKA', name: '冲绳',    nameEn: 'Okinawa',     airport: '那霸机场',           country: '日本' },
+
+  // ══ 韩国 ══
+  { code: 'ICN', name: '首尔',    nameEn: 'Seoul',       airport: '仁川国际机场',       country: '韩国' },
+  { code: 'GMP', name: '首尔',    nameEn: 'Seoul',       airport: '金浦机场',           country: '韩国' },
+  { code: 'PUS', name: '釜山',    nameEn: 'Busan',       airport: '金海国际机场',       country: '韩国' },
+  { code: 'CJU', name: '济州',    nameEn: 'Jeju',        airport: '济州国际机场',       country: '韩国' },
+
+  // ══ 美国 ══
+  { code: 'JFK', name: '纽约',    nameEn: 'New York',    airport: '肯尼迪国际机场',     country: '美国' },
+  { code: 'LGA', name: '纽约',    nameEn: 'New York',    airport: '拉瓜迪亚机场',       country: '美国' },
+  { code: 'LAX', name: '洛杉矶',  nameEn: 'Los Angeles', airport: '洛杉矶国际机场',     country: '美国' },
+  { code: 'SFO', name: '旧金山',  nameEn: 'San Francisco', airport: '旧金山国际机场',   country: '美国' },
+  { code: 'LAS', name: '拉斯维加斯', nameEn: 'Las Vegas', airport: '麦卡伦国际机场',    country: '美国' },
+  { code: 'ORD', name: '芝加哥',  nameEn: 'Chicago',     airport: "奥黑尔国际机场",     country: '美国' },
+  { code: 'MIA', name: '迈阿密',  nameEn: 'Miami',       airport: '迈阿密国际机场',     country: '美国' },
+  { code: 'HNL', name: '夏威夷',  nameEn: 'Hawaii',      airport: '檀香山国际机场',     country: '美国' },
 ]
 
 export function findCityByCode(code: string): CityOption | undefined {
@@ -185,51 +231,21 @@ export interface SearchResult {
 export function searchCities(query: string): SearchResult[] {
   const q = query.toLowerCase().trim()
 
-  if (!q) {
-    const seen = new Set<string>()
-    const results: SearchResult[] = []
-    for (const c of POPULAR_CITIES) {
-      if (seen.has(c.name)) continue
-      seen.add(c.name)
-      const primaryCode = CITY_PRIMARY[c.name] ?? c.code
-      const primaryCity = POPULAR_CITIES.find((p) => p.code === primaryCode) ?? c
-      results.push({ type: 'city', city: primaryCity, label: c.name, sub: '城市' })
-    }
-    return results  // 返回全部，让 AutoComplete 展示完整列表
-  }
-
-  const cityMatches = new Set<string>()
+  const seen = new Set<string>()
   const results: SearchResult[] = []
 
   for (const c of POPULAR_CITIES) {
-    if (c.name.includes(q) || c.nameEn.toLowerCase().includes(q)) {
-      if (!cityMatches.has(c.name)) {
-        cityMatches.add(c.name)
-        const primaryCode = CITY_PRIMARY[c.name] ?? c.code
-        const primaryCity = POPULAR_CITIES.find((p) => p.code === primaryCode) ?? c
-        results.push({ type: 'city', city: primaryCity, label: c.name, sub: '城市' })
-      }
+    if (seen.has(c.name)) continue
+    // 无搜索词显示全部；有搜索词按城市名/英文名匹配
+    if (!q || c.name.includes(q) || c.nameEn.toLowerCase().includes(q)) {
+      seen.add(c.name)
+      const primaryCode = CITY_PRIMARY[c.name] ?? c.code
+      const primaryCity = POPULAR_CITIES.find((p) => p.code === primaryCode) ?? c
+      results.push({ type: 'city', city: primaryCity, label: c.name, sub: primaryCity.country ?? '城市' })
     }
   }
 
-  for (const c of POPULAR_CITIES) {
-    if (
-      c.code.toLowerCase().includes(q) ||
-      c.airport.includes(q) ||
-      c.name.includes(q) ||
-      c.nameEn.toLowerCase().includes(q)
-    ) {
-      results.push({ type: 'airport', city: c, label: c.name, sub: c.airport })
-    }
-  }
-
-  const seen = new Set<string>()
-  return results.filter((r) => {
-    const key = `${r.type}-${r.city.code}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  }).slice(0, 20)
+  return q ? results.slice(0, 20) : results
 }
 
 export function getAirportsByCity(cityName: string): CityOption[] {

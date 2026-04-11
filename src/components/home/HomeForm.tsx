@@ -515,18 +515,12 @@ const CityField = memo(
       value: r.city.code,
       label: (
         <div className="flex items-center gap-2.5 py-0.5">
-          <span
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 font-bold"
-            style={{ background: '#2563EB', fontSize: 11 }}
-          >
-            {r.city.name.slice(0, 1)}
-          </span>
           <div className="min-w-0">
             <span className="text-sm font-medium" style={{ color: '#0F172A' }}>
               {r.label}
             </span>
             <p className="text-xs" style={{ color: '#94A3B8' }}>
-              {r.city.nameEn}
+              {r.city.nameEn}{r.city.country && r.city.country !== '中国' ? ` · ${r.city.country}` : ''}
             </p>
           </div>
         </div>
@@ -721,7 +715,7 @@ const DateField = memo(
             {...timePickerShared}
             value={arrivalTime ? dayjs(arrivalTime, 'HH:mm') : null}
             onChange={(t) => onArrivalTimeChange(t ? t.format('HH:mm') : '')}
-            placeholder="落地时间"
+            placeholder="预计落地时间"
             style={{ width: '50%', height: 24 }}
           />
           <span
@@ -738,7 +732,7 @@ const DateField = memo(
             {...timePickerShared}
             value={departureTime ? dayjs(departureTime, 'HH:mm') : null}
             onChange={(t) => onDepartureTimeChange(t ? t.format('HH:mm') : '')}
-            placeholder="起飞时间"
+            placeholder="预计起飞时间"
             style={{ width: '50%', height: 24 }}
           />
         </div>

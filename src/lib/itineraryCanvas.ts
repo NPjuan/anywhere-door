@@ -10,9 +10,28 @@ async function getSnapdom() {
   return mod.snapdom
 }
 
+// 截图前锁定容器为固定宽度，确保低分辨率屏幕输出一致
+const CAPTURE_WIDTH = 1200
+
+function lockWidth(el: HTMLElement) {
+  const prev = {
+    width:    el.style.width,
+    minWidth: el.style.minWidth,
+    maxWidth: el.style.maxWidth,
+  }
+  el.style.width    = `${CAPTURE_WIDTH}px`
+  el.style.minWidth = `${CAPTURE_WIDTH}px`
+  el.style.maxWidth = `${CAPTURE_WIDTH}px`
+  return () => {
+    el.style.width    = prev.width
+    el.style.minWidth = prev.minWidth
+    el.style.maxWidth = prev.maxWidth
+  }
+}
+
 /**
  * 截取单天行程并下载为 PNG
- * 流程：切换到目标 day → 等待渲染 → snapdom 截图 → 下载
+ * 流程：切换到目标 day → 等待渲染 → 锁宽 → snapdom 截图 → 恢复宽度 → 下载
  */
 export async function downloadDayAsImage(
   itinerary:    FullItinerary,
@@ -36,18 +55,25 @@ export async function downloadDayAsImage(
     return
   }
 
-  const result = await snapdom(row, {
-    scale:       3,           // 3x 超清
-    dpr:         window.devicePixelRatio || 2,
-    embedFonts:  true,
-    backgroundColor: '#F8FAFF',
-    // 排除地图控件按钮（截图里不需要）
-    exclude:     ['.amap-ctrl-list', '.amap-logo', '.amap-copyright'],
-  })
+  // 锁定宽度，保证截图尺寸与分辨率无关
+  const restoreWidth = lockWidth(row)
+  // 等一帧让 grid/flex 重新布局
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
 
-  await result.download({
-    filename: `${itinerary.title}-Day${day.day}.png`,
-  })
+  try {
+    const result = await snapdom(row, {
+      scale:       2,
+      dpr:         1,           // 固定 dpr=1，配合锁宽保证输出稳定
+      embedFonts:  true,
+      backgroundColor: '#F8FAFF',
+      exclude:     ['.amap-ctrl-list', '.amap-logo', '.amap-copyright'],
+    })
+    await result.download({
+      filename: `${itinerary.title}-Day${day.day}.png`,
+    })
+  } finally {
+    restoreWidth()
+  }
 }
 
 /**

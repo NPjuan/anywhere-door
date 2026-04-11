@@ -202,8 +202,8 @@ export function ActivityCard({ activity, refineMode = false, onMapPin, onClick }
           </span>
         )}
         {activity.poi?.address && (
-          <span className="flex items-center gap-1 text-xs truncate max-w-[180px]" style={{ color: '#94A3B8' }}>
-            <MapPin size={10} />{activity.poi.address}
+          <span className="flex items-start gap-1 text-xs" style={{ color: '#94A3B8' }}>
+            <MapPin size={10} className="shrink-0 mt-0.5" />{activity.poi.address}
           </span>
         )}
       </div>
