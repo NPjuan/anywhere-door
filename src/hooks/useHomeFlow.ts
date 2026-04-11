@@ -673,10 +673,15 @@ export function useHomeFlow() {
           if (latest.status === 'pending') {
             // pending 状态：自动恢复（用户本来就在规划中，需要无感继续）
             restoreSearchParams(restorable);
-          } else {
-            // error/interrupted：有 planning_params，可恢复表单
+          } else if (latest.status === 'error' || latest.status === 'interrupted') {
+            // 规划失败：恢复表单，提示用户
             setPendingRestore(restorable);
-            setPendingRestoreStatus(latest.status as 'error' | 'interrupted');
+            setPendingRestoreStatus(latest.status);
+            setPendingRestorePlanId(latest.id);
+          } else {
+            // done 但 planning_params 还在（罕见）：仅显示恢复入口，不标记失败
+            setPendingRestore(restorable);
+            setPendingRestoreStatus('done');
             setPendingRestorePlanId(latest.id);
           }
         } else if (latest.status === 'done') {
