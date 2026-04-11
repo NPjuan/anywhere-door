@@ -12,6 +12,42 @@ import { motion, AnimatePresence } from 'framer-motion'
 const HEART_COLORS = ['❤️','🧡','💛','💚','💙','💜','🩷','🩵']
 const PIANO_NOTE_NAMES = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5']
 
+// 模块级缓存：预加载完成后复用，避免重复加载
+let _samplerReady: Promise<{ sampler: import('tone').Sampler; Tone: typeof import('tone') }> | null = null
+let _midiReady: Promise<import('@tonejs/midi').Midi> | null = null
+
+function preload() {
+  if (!_samplerReady) {
+    _samplerReady = (async () => {
+      const Tone = await import('tone')
+      const sampler = new Tone.Sampler({
+        urls: {
+          A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+          A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+          A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+          A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+          A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+          A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+          A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+          A7: 'A7.mp3', C8: 'C8.mp3',
+        },
+        release: 1,
+        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+      }).toDestination()
+      await Tone.loaded()
+      return { sampler, Tone }
+    })()
+  }
+  if (!_midiReady) {
+    _midiReady = (async () => {
+      const { Midi } = await import('@tonejs/midi')
+      const res = await fetch('/doraemon.mid')
+      const buf = await res.arrayBuffer()
+      return new Midi(buf)
+    })()
+  }
+}
+
 interface FloatingHeart { id: number; x: number; color: string }
 interface Props { mode: 'piano' | 'doraemon' }
 
@@ -48,7 +84,12 @@ export const PoweredByName = memo(({ mode }: Props) => {
     setTimeout(() => setHearts(h => h.filter(hh => hh.id !== id)), 1400)
   }, [])
 
-  /* doraemon 模式：加载并播放 MIDI */
+  /* 组件 mount 时静默预加载，不等用户操作 */
+  useEffect(() => {
+    preload()
+  }, [])
+
+  /* doraemon 模式：播放 MIDI */
   useEffect(() => {
     if (mode !== 'doraemon') {
       // 停止播放
@@ -66,38 +107,12 @@ export const PoweredByName = memo(({ mode }: Props) => {
 
     const startPlayback = async () => {
       try {
-        // 动态 import，避免 SSR 报错
-        const [Tone, { Midi }] = await Promise.all([
-          import('tone'),
-          import('@tonejs/midi'),
+        // 直接 await 预加载缓存，通常已经 ready
+        const [{ sampler, Tone }, midi] = await Promise.all([
+          _samplerReady!,
+          _midiReady!,
         ])
         if (cancelled) return
-
-        // 加载 MIDI
-        const res  = await fetch('/doraemon.mid')
-        const buf  = await res.arrayBuffer()
-        const midi = new Midi(buf)
-        if (cancelled) return
-
-        // 创建钢琴音色（Tone.js 内置 Sampler 用钢琴采样）
-        const sampler = new Tone.Sampler({
-          urls: {
-            A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
-            A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
-            A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
-            A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
-            A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
-            A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
-            A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
-            A7: 'A7.mp3', C8: 'C8.mp3',
-          },
-          release: 1,
-          baseUrl: 'https://tonejs.github.io/audio/salamander/',
-        }).toDestination()
-
-        // 等采样加载完
-        await Tone.loaded()
-        if (cancelled) { sampler.dispose(); return }
 
         // 设置 BPM
         Tone.getTransport().bpm.value = midi.header.tempos[0]?.bpm ?? 126
@@ -142,8 +157,7 @@ export const PoweredByName = memo(({ mode }: Props) => {
       tonePartsRef.current = []
       if (beatTimerRef.current) clearInterval(beatTimerRef.current)
       setShaking(null)
-      // transport.stop 但不 dispose（Tone.js 全局 transport）
-      import('tone').then((Tone) => {
+      _samplerReady?.then(({ Tone }) => {
         Tone.getTransport().stop()
         Tone.getTransport().cancel()
       }).catch(() => {})
