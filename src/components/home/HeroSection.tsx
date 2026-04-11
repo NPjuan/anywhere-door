@@ -3,27 +3,41 @@
 import { useEffect, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const CN_SUBS = [
+  '口袋里装着整个世界，你想去何方',
+  '找传说的宝藏，冒险到远方',
+  '心中有许多愿望，能够实现有多棒',
+  '每天过的都一样，偶尔会突发奇想',
+]
+
 const LINES = [
-  { title: '任意门',       sub: '口袋里装着整个世界，你想去哪里' },
+  { title: '任意门',        sub: null },           // null = 从 CN_SUBS 轮流取
   { title: 'Anywhere Door', sub: 'Open the door, find your world' },
   { title: 'どこでもドア',  sub: 'どこでもドアで、夢の旅へ出発！' },
   { title: 'Porte Magique', sub: 'Ouvre la porte, explore le monde' },
   { title: '어디든 문',    sub: '이 문을 열면, 꿈의 여행이 시작돼' },
-  { title: 'Puerta Mágica', sub: 'Abre la puerta, vive la aventura' },
-  { title: 'Porta Magica',  sub: 'Ogni porta apre un nuovo viaggio' },
 ];
 
 export const HeroSection = memo(() => {
   const [idx, setIdx] = useState(0);
+  const [cnIdx, setCnIdx] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => {
-      setIdx((i) => (i + 1) % LINES.length);
+      setIdx((i) => {
+        const next = (i + 1) % LINES.length;
+        // 每次轮到中文槽位时，切换到下一句中文
+        if (LINES[next].sub === null) {
+          setCnIdx((c) => (c + 1) % CN_SUBS.length);
+        }
+        return next;
+      });
     }, 2800);
     return () => clearInterval(t);
   }, []);
 
   const current = LINES[idx];
+  const sub = current.sub ?? CN_SUBS[cnIdx];
 
   return (
     <div className="text-center py-8 md:py-10">
@@ -58,7 +72,7 @@ export const HeroSection = memo(() => {
             className="text-sm"
             style={{ color: '#94A3B8', lineHeight: 1.6 }}
           >
-            {current.sub}
+            {sub}
           </motion.p>
         </AnimatePresence>
       </div>
