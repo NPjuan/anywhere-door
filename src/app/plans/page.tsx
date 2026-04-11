@@ -38,11 +38,11 @@ export default function PlansPage() {
   const [total, setTotal]           = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [copiedId, setCopiedId]     = useState<string | null>(null)
-  const [search, setSearch]         = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const searchRef = useRef('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const fetchPlans = useCallback(async (p = 1, q = search) => {
+  const fetchPlans = useCallback(async (p = 1, q = searchRef.current) => {
     setLoading(true)
     setError(null)
     const deviceId = getDeviceId()
@@ -91,7 +91,7 @@ export default function PlansPage() {
     } finally {
       setLoading(false)
     }
-  }, [search])
+  }, [])
 
   useEffect(() => { fetchPlans(1) }, [fetchPlans])
 
@@ -99,14 +99,15 @@ export default function PlansPage() {
     setSearchInput(val)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      setSearch(val)
+      searchRef.current = val
       fetchPlans(1, val)
-    }, 300)
+    }, 400)
   }
 
   const handleClearSearch = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     setSearchInput('')
-    setSearch('')
+    searchRef.current = ''
     fetchPlans(1, '')
   }
 
@@ -162,10 +163,10 @@ export default function PlansPage() {
                 {loading
                   ? '加载中...'
                   : total > 0
-                    ? search
-                      ? `搜索「${search}」找到 ${total} 个行程`
+                    ? searchInput
+                      ? `搜索「${searchInput}」找到 ${total} 个行程`
                       : `共 ${total} 个行程，第 ${from}–${to} 条`
-                    : search ? `没有匹配「${search}」的行程` : '还没有保存的计划'}
+                    : searchInput ? `没有匹配「${searchInput}」的行程` : '还没有保存的计划'}
               </p>
             </div>
           </div>
@@ -271,7 +272,7 @@ export default function PlansPage() {
               <FolderOpen size={28} style={{ color: '#CBD5E1' }} />
             </div>
             <div className="text-center">
-              {search ? (
+              {searchInput ? (
                 <>
                   <p className="font-medium" style={{ color: '#475569' }}>没有找到相关行程</p>
                   <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>试试其他关键词，或</p>
@@ -290,7 +291,7 @@ export default function PlansPage() {
                 </>
               )}
             </div>
-            {!search && (
+            {!searchInput && (
               <Link href="/"
                 className="mt-2 px-5 py-2.5 rounded-lg text-sm font-medium"
                 style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#2563EB' }}>
@@ -311,16 +312,16 @@ export default function PlansPage() {
                 const isDeleting = deleting === plan.id
 
                 const highlight = (text: string) => {
-                  if (!search || !text) return text
-                  const idx = text.toLowerCase().indexOf(search.toLowerCase())
+                  if (!searchInput || !text) return text
+                  const idx = text.toLowerCase().indexOf(searchInput.toLowerCase())
                   if (idx === -1) return text
                   return (
                     <>
                       {text.slice(0, idx)}
                       <mark style={{ background: '#FEF08A', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
-                        {text.slice(idx, idx + search.length)}
+                        {text.slice(idx, idx + searchInput.length)}
                       </mark>
-                      {text.slice(idx + search.length)}
+                      {text.slice(idx + searchInput.length)}
                     </>
                   )
                 }
