@@ -10,6 +10,27 @@ import qrCode from '@/assets/payment-collection-code.png'
    SponsorButton — 右下角赞助按钮 + 收款码弹窗
    ============================================================ */
 
+function QRSkeleton() {
+  return (
+    <div
+      className="absolute inset-0"
+      style={{
+        background: 'linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%)',
+        backgroundSize: '200% 100%',
+        animation: 'qr-shimmer 1.4s ease-in-out infinite',
+        zIndex: 0,
+      }}
+    >
+      <style>{`
+        @keyframes qr-shimmer {
+          0%   { background-position: 200% 0 }
+          100% { background-position: -200% 0 }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 export function SponsorButton() {
   const [open, setOpen] = useState(false)
 
@@ -86,15 +107,17 @@ export function SponsorButton() {
               {/* 收款码 */}
               <div className="px-5 py-4 flex flex-col items-center gap-3">
                 <div
-                  className="rounded-lg overflow-hidden"
-                  style={{ border: '1px solid #F3F4F6' }}
+                  className="rounded-lg overflow-hidden relative"
+                  style={{ border: '1px solid #F3F4F6', width: 180, height: 180 }}
                 >
+                  {/* 骨架占位，图片加载后淡出 */}
+                  <QRSkeleton />
                   <Image
                     src={qrCode}
                     alt="收款码"
                     width={180}
                     height={180}
-                    style={{ display: 'block' }}
+                    style={{ display: 'block', position: 'relative', zIndex: 1 }}
                   />
                 </div>
                 <p className="text-xs text-center" style={{ color: '#6B7280', lineHeight: 1.6 }}>
