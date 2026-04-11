@@ -771,8 +771,15 @@ export function useHomeFlow() {
             }).catch((e) => console.warn('[useHomeFlow] Failed to restart orchestrate-bg:', e))
           }
 
-          // 不管是否重启，都开始轮询（等待 synthesis waiting 信号）
-          startPollingForPlan(latest.id)
+          // synthesis 已在运行（刷新页面时 stream 断开）→ 直接重连流式输出
+          if ((synthStatus === 'running' || synthStatus === 'waiting') && !synthStreamActiveRef.current) {
+            synthStreamActiveRef.current = true
+            updateAgent('synthesis', { status: 'running', progress: 0, message: '整合行程中...', streamChunk: '' })
+            void runSynthesisStream(latest.id)
+          } else {
+            // 其他情况：轮询等待 synthesis waiting 信号
+            startPollingForPlan(latest.id)
+          }
         } else if (!pp) {
           // 无 planning_params 且 pending → 标记 error
           if (latest.status === 'pending') {
