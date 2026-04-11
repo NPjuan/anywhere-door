@@ -32,6 +32,7 @@ import { PoweredByName } from '@/components/home/PoweredByName';
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
+import { IntroGuide } from '@/components/ui/IntroGuide';
 
 type FooterMode = 'piano' | 'doraemon'
 
@@ -73,13 +74,27 @@ function FooterPowered() {
         title={mode === 'piano' ? '切换哆啦A梦模式' : '切换钢琴模式'}
       >
         {mode === 'doraemon'
-          ? poweredChars.map((ch, i) => <RainbowChar key={i} char={ch} offset={i} />)
+          ? <ConductorBaton />
           : <PoweredFlash />
         }
       </span>
       {' by '}
       <PoweredByName mode={mode} />
     </motion.div>
+  )
+}
+
+/* 指挥棒：哆啦A梦模式下替代 Powered 文字，来回挥舞 */
+function ConductorBaton() {
+  return (
+    <motion.span
+      style={{ display: 'inline-block', fontSize: 18, transformOrigin: 'bottom center', cursor: 'pointer' }}
+      animate={{ rotate: [-30, 30, -30] }}
+      transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}
+      title="切换钢琴模式"
+    >
+      🪄
+    </motion.span>
   )
 }
 
@@ -836,8 +851,9 @@ export default function HomePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
       >
-        <SponsorButton />
+        <IntroGuide />
         <FeedbackButton />
+        <SponsorButton />
       </motion.div>
     </main>
   );
