@@ -89,7 +89,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
               border:       '1px solid',
               borderColor:  i === safeActiveDay ? '#2563EB' : '#E2E8F0',
               color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
-              borderRadius: 6,
+              borderRadius: 8,
             }}
           >
             Day {i + 1}

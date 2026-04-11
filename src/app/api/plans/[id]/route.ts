@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
    GET    /api/plans/[id]  — 获取单个计划（含完整 itinerary）
@@ -51,7 +50,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Phase 1: Check share permissions
-  const currentDeviceId = getDeviceId()
+  // 从 header 读取 deviceId（服务端不能用 getDeviceId()，那是浏览器 localStorage API）
+  const currentDeviceId = _req.headers.get('x-device-id') ?? ''
   const hasAccess = checkShareAccess(
     data.device_id,
     currentDeviceId,

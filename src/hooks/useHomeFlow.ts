@@ -261,7 +261,9 @@ export function useHomeFlow() {
         }
 
         // 流结束，从 DB 取最终 itinerary
-        const detail = await fetch(`/api/plans/${planId}`).then((r) =>
+        const detail = await fetch(`/api/plans/${planId}`, {
+          headers: { 'x-device-id': getDeviceId() },
+        }).then((r) =>
           r.ok ? r.json() : null
         );
         if (detail?.plan?.status === 'done' && detail.plan.itinerary) {
@@ -366,6 +368,7 @@ export function useHomeFlow() {
 
           const detail = await fetch(`/api/plans/${planId}`, {
             signal: controller.signal,
+            headers: { 'x-device-id': getDeviceId() },
           }).then((r) => (r.ok ? r.json() : null));
 
           clearTimeout(timeoutId);
@@ -573,7 +576,9 @@ export function useHomeFlow() {
         const latest = data.plans[0];
 
         // 取完整 plan 拿 planning_params
-        const detail = await fetch(`/api/plans/${latest.id}`).then((r) =>
+        const detail = await fetch(`/api/plans/${latest.id}`, {
+          headers: { 'x-device-id': deviceId },
+        }).then((r) =>
           r.ok ? r.json() : null
         );
         const pp = detail?.plan?.planning_params as

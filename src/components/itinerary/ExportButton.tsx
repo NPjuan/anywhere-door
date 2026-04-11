@@ -141,17 +141,58 @@ export function ExportButton({ itinerary, planId: planIdProp }: ExportButtonProp
 }
 
 function formatItineraryText(it: FullItinerary): string {
-  const budgetText = it.budget?.low && it.budget?.high ? `¥${it.budget.low}-${it.budget.high}` : '待定'
-  const lines = [`🚀 ${it.title}`, `━━━━━━━━━━━━━━━━━━`, it.summary, '', `💰 预算：${budgetText}`, '']
-  it.days.forEach((day) => {
-    lines.push(`📅 第${day.day}天：${day.title}`)
-    ;[...day.morning, ...day.afternoon, ...day.evening].forEach((a) => lines.push(`  ${a.time} ${a.name} · ${a.duration}`))
+  const budgetText = it.budget?.low && it.budget?.high ? `¥${it.budget.low}–${it.budget.high}` : '待定'
+  const daysCount  = it.days?.length ?? 0
+  const lines: string[] = [
+    `✈️ ${it.title}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    it.summary ?? '',
+    '',
+    `📍 目的地：${it.destination ?? ''}`,
+    `🗓️  行程天数：${daysCount} 天`,
+    `💰 预算：${budgetText}`,
+    '',
+  ]
+
+  it.days?.forEach((day) => {
+    const date = day.date ? ` (${day.date})` : ''
+    lines.push(`📅 第 ${day.day} 天${date}：${day.title}`)
+
+    const sections: [string, typeof day.morning][] = [
+      ['上午', day.morning ?? []],
+      ['下午', day.afternoon ?? []],
+      ['晚上', day.evening ?? []],
+    ]
+    sections.forEach(([label, acts]) => {
+      if (!acts.length) return
+      lines.push(`  【${label}】`)
+      acts.forEach((a) => {
+        const parts = [`  ${a.time ?? ''}`, a.name]
+        if (a.duration) parts.push(`[${a.duration}]`)
+        lines.push(parts.join(' '))
+        if (a.description) lines.push(`      ${a.description}`)
+        const meta: string[] = []
+        if (a.cost)      meta.push(`💴 ${a.cost}`)
+        if (a.transport) meta.push(`🚌 ${a.transport}`)
+        if (meta.length) lines.push(`      ${meta.join('  ')}`)
+      })
+    })
     lines.push('')
   })
+
+  if (it.warnings?.length) {
+    lines.push('⚠️  注意事项：')
+    it.warnings.forEach((w) => lines.push(`  · ${w}`))
+    lines.push('')
+  }
+
   if (it.packingTips?.length) {
     lines.push('🎒 打包建议：')
     it.packingTips.forEach((t) => lines.push(`  · ${t}`))
+    lines.push('')
   }
-  lines.push('由 任意门 Anywhere Door AI 生成')
+
+  lines.push('━━━━━━━━━━━━━━━━━━')
+  lines.push('由 任意门 Anywhere Door AI 生成 · https://anywhere-door.vercel.app')
   return lines.join('\n')
 }

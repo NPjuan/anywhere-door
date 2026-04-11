@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion'
      'doraemon'— 用 Tone.js 播放真实 MIDI 钢琴曲，字母随节拍跳动
    ============================================================ */
 
-const HEART_COLORS = ['❤️','🧡','💛','💚','💙','💜','🩷','🩵']
+const NOTE_SYMBOLS = ['♩','♪','♫','♬','♩','♪','♫','♬']
+const NOTE_COLORS  = ['#2563EB','#7C3AED','#0891B2','#059669','#D97706','#DC2626','#6366F1','#0EA5E9']
 const PIANO_NOTE_NAMES = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5']
 
 // 模块级缓存：预加载完成后复用，避免重复加载
@@ -48,7 +49,7 @@ function preload() {
   }
 }
 
-interface FloatingHeart { id: number; x: number; color: string }
+interface FloatingNote { id: number; x: number; symbol: string; color: string }
 interface Props { mode: 'piano' | 'doraemon' }
 
 export const PoweredByName = memo(({ mode }: Props) => {
@@ -60,16 +61,15 @@ export const PoweredByName = memo(({ mode }: Props) => {
   )
 
   const [shaking, setShaking] = useState<number | null>(null)
-  const [hearts, setHearts]   = useState<FloatingHeart[]>([])
+  const [notes,   setNotes]   = useState<FloatingNote[]>([])
   const counterRef    = useRef(0)
   const containerRef  = useRef<HTMLSpanElement>(null)
   const letterRefs    = useRef<(HTMLSpanElement | null)[]>([])
   const tonePartsRef  = useRef<{ dispose: () => void }[]>([])
   const transportRef  = useRef<{ stop: () => void; dispose: () => void } | null>(null)
-  const beatTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const letterCycleRef = useRef(0)
 
-  const spawnHeart = useCallback((li: number) => {
+  const spawnNote = useCallback((li: number) => {
     const el  = letterRefs.current[li]
     const box = containerRef.current
     let x = 0
@@ -78,10 +78,11 @@ export const PoweredByName = memo(({ mode }: Props) => {
       const lr = el.getBoundingClientRect()
       x = lr.left - cr.left + lr.width / 2 - 8
     }
-    const id    = ++counterRef.current
-    const color = HEART_COLORS[id % HEART_COLORS.length]
-    setHearts(h => [...h, { id, x, color }])
-    setTimeout(() => setHearts(h => h.filter(hh => hh.id !== id)), 1400)
+    const id     = ++counterRef.current
+    const symbol = NOTE_SYMBOLS[id % NOTE_SYMBOLS.length]
+    const color  = NOTE_COLORS[id % NOTE_COLORS.length]
+    setNotes(n => [...n, { id, x, symbol, color }])
+    setTimeout(() => setNotes(n => n.filter(nn => nn.id !== id)), 1400)
   }, [])
 
   /* 组件 mount 时静默预加载，不等用户操作 */
@@ -98,7 +99,6 @@ export const PoweredByName = memo(({ mode }: Props) => {
       transportRef.current?.stop()
       transportRef.current?.dispose()
       transportRef.current = null
-      if (beatTimerRef.current) clearInterval(beatTimerRef.current)
       setShaking(null)
       return
     }
@@ -107,7 +107,8 @@ export const PoweredByName = memo(({ mode }: Props) => {
 
     const startPlayback = async () => {
       try {
-        // 直接 await 预加载缓存，通常已经 ready
+        // 确保预加载已启动（防止 doraemon effect 早于 preload effect 执行）
+        preload()
         const [{ sampler, Tone }, midi] = await Promise.all([
           _samplerReady!,
           _midiReady!,
@@ -115,34 +116,57 @@ export const PoweredByName = memo(({ mode }: Props) => {
         if (cancelled) return
 
         // 设置 BPM
-        Tone.getTransport().bpm.value = midi.header.tempos[0]?.bpm ?? 126
+        const bpm = midi.header.tempos[0]?.bpm ?? 126
+        Tone.getTransport().bpm.value = bpm
+        const beatSec = 60 / bpm
 
         // 安排所有音符
         const track = midi.tracks[0]
-        const part  = new Tone.Part((time: number, note: { name: string; duration: number; velocity: number }) => {
-          sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity)
-        }, track.notes.map(n => ({ time: n.time, name: n.name, duration: n.duration, velocity: n.velocity })))
 
-        part.loop  = true
+        // 过滤出"主旋律音符"：每 beatSec 间隔里取第一个音符，用于驱动字母跳动
+        // 这样字母跳动与音符响声严格对应，而不是独立的节拍循环
+        let lastBeatTime = -1
+        const beatNotes = track.notes.filter(n => {
+          const beatIdx = Math.round(n.time / beatSec)
+          if (beatIdx !== lastBeatTime) {
+            lastBeatTime = beatIdx
+            return true
+          }
+          return false
+        })
+
+        const part  = new Tone.Part((time: number, note: { name: string; duration: number; velocity: number; isBeat?: boolean }) => {
+          sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity)
+
+          // 仅在"主旋律"音符时触发字母跳动
+          if (!note.isBeat) return
+          // 用 (time - Tone.now()) 算出距离音符响起还有多少毫秒，setTimeout 精确对齐
+          const delayMs = Math.max(0, (time - Tone.now()) * 1000)
+          setTimeout(() => {
+            if (cancelled) return
+            const li = nonSpaceIdx[letterCycleRef.current % nonSpaceIdx.length]
+            letterCycleRef.current++
+            setShaking(li)
+            setTimeout(() => setShaking(s => s === li ? null : s), beatSec * 600)
+            if (letterCycleRef.current % 3 === 0) spawnNote(li)
+          }, delayMs)
+        }, [
+          // 全部音符（播放音乐）
+          ...track.notes.map(n => ({ time: n.time, name: n.name, duration: n.duration, velocity: n.velocity, isBeat: false })),
+          // 主旋律音符（额外标记，触发视觉）
+          ...beatNotes.map(n  => ({ time: n.time,  name: n.name,  duration: n.duration,  velocity: n.velocity,  isBeat: true })),
+        ])
+
+        part.loop    = true
         part.loopEnd = midi.duration
 
-        tonePartsRef.current = [part as unknown as { dispose: () => void }]
+        tonePartsRef.current = [
+          part  as unknown as { dispose: () => void },
+        ]
         transportRef.current = Tone.getTransport() as unknown as { stop: () => void; dispose: () => void }
 
         part.start(0)
         Tone.getTransport().start()
-
-        // 按节拍驱动字母跳动
-        const bpm    = midi.header.tempos[0]?.bpm ?? 126
-        const beatMs = (60 / bpm) * 1000
-        beatTimerRef.current = setInterval(() => {
-          if (cancelled) return
-          const li = nonSpaceIdx[letterCycleRef.current % nonSpaceIdx.length]
-          letterCycleRef.current++
-          setShaking(li)
-          setTimeout(() => setShaking(s => s === li ? null : s), beatMs * 0.6)
-          if (letterCycleRef.current % 3 === 0) spawnHeart(li)
-        }, beatMs)
 
       } catch (err) {
         console.error('[PoweredByName] MIDI playback error:', err)
@@ -155,14 +179,13 @@ export const PoweredByName = memo(({ mode }: Props) => {
       cancelled = true
       tonePartsRef.current.forEach(p => p.dispose())
       tonePartsRef.current = []
-      if (beatTimerRef.current) clearInterval(beatTimerRef.current)
       setShaking(null)
       _samplerReady?.then(({ Tone }) => {
         Tone.getTransport().stop()
         Tone.getTransport().cancel()
       }).catch(() => {})
     }
-  }, [mode, nonSpaceIdx, spawnHeart])
+  }, [mode, nonSpaceIdx, spawnNote])
 
   /* 钢琴模式：点击弹音 */
   const handleClick = useCallback(async (i: number, ch: string) => {
@@ -187,10 +210,11 @@ export const PoweredByName = memo(({ mode }: Props) => {
       const lr = el.getBoundingClientRect()
       x = lr.left - cr.left + lr.width / 2 - 8
     }
-    const id    = ++counterRef.current
-    const color = HEART_COLORS[id % HEART_COLORS.length]
-    setHearts(h => [...h, { id, x, color }])
-    setTimeout(() => setHearts(h => h.filter(hh => hh.id !== id)), 1200)
+    const id     = ++counterRef.current
+    const symbol = NOTE_SYMBOLS[id % NOTE_SYMBOLS.length]
+    const color  = NOTE_COLORS[id % NOTE_COLORS.length]
+    setNotes(n => [...n, { id, x, symbol, color }])
+    setTimeout(() => setNotes(n => n.filter(nn => nn.id !== id)), 1200)
   }, [mode])
 
   return (
@@ -213,15 +237,15 @@ export const PoweredByName = memo(({ mode }: Props) => {
       ))}
 
       <AnimatePresence>
-        {hearts.map(h => (
-          <motion.span key={h.id}
-            initial={{ opacity: 1, y: 0,   scale: 0.7 }}
-            animate={{ opacity: 0, y: -44, scale: 1.4 }}
+        {notes.map(n => (
+          <motion.span key={n.id}
+            initial={{ opacity: 1, y: 0,   scale: 0.8 }}
+            animate={{ opacity: 0, y: -44, scale: 1.3 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.1, ease: 'easeOut' }}
-            style={{ position: 'absolute', bottom: '100%', left: h.x, pointerEvents: 'none', fontSize: 14, lineHeight: 1 }}
+            style={{ position: 'absolute', bottom: '100%', left: n.x, pointerEvents: 'none', fontSize: 15, lineHeight: 1, color: n.color, fontWeight: 700 }}
           >
-            {h.color}
+            {n.symbol}
           </motion.span>
         ))}
       </AnimatePresence>

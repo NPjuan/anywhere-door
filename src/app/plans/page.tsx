@@ -4,17 +4,12 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Pagination, Spin } from 'antd'
-import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X, Share2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X, Loader2 } from 'lucide-react'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
-import { ShareSettingsModal } from '@/components/plans/ShareSettingsModal'
 import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
    /plans — 已保存的旅行计划列表（Supabase）分页 + 搜索版
-   
-   Phase 1: Basic Sharing
-   - 新增分享设置按钮 (Share2 icon)
-   - 打开 ShareSettingsModal 配置分享
    ============================================================ */
 
 const PAGE_SIZE = 6
@@ -31,7 +26,6 @@ interface PlanRow {
   budget_low:  number
   budget_high: number
   saved_at:    string
-  share_enabled?: boolean
 }
 
 export default function PlansPage() {
@@ -47,11 +41,6 @@ export default function PlansPage() {
   const [search, setSearch]         = useState('')
   const [searchInput, setSearchInput] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  
-  // Phase 1: Share Settings Modal
-  const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
-  const deviceId = getDeviceId()
 
   const fetchPlans = useCallback(async (p = 1, q = search) => {
     setLoading(true)
@@ -68,6 +57,31 @@ export default function PlansPage() {
       const res = await fetch(`/api/plans?${params}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
+
+      // 超过 30 分钟还是 pending 的，自动标记为 error
+      const TIMEOUT_MS = 30 * 60 * 1000
+      const now = Date.now()
+      const stalePending = (data.plans ?? []).filter((plan: PlanRow) =>
+        plan.status === 'pending' && now - new Date(plan.saved_at).getTime() > TIMEOUT_MS
+      )
+      if (stalePending.length > 0) {
+        await Promise.all(stalePending.map((plan: PlanRow) =>
+          fetch(`/api/plans/${plan.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'error' }),
+          })
+        ))
+        // 重新拉取以获取最新状态
+        const res2 = await fetch(`/api/plans?${params}`)
+        const data2 = await res2.json()
+        setPlans(data2.plans ?? [])
+        setTotal(data2.total ?? 0)
+        setTotalPages(data2.totalPages ?? 1)
+        setPage(p)
+        return
+      }
+
       setPlans(data.plans ?? [])
       setTotal(data.total ?? 0)
       setTotalPages(data.totalPages ?? 1)
@@ -81,7 +95,6 @@ export default function PlansPage() {
 
   useEffect(() => { fetchPlans(1) }, [fetchPlans])
 
-  // 搜索输入防抖 300ms
   const handleSearchChange = (val: string) => {
     setSearchInput(val)
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -125,13 +138,6 @@ export default function PlansPage() {
     } catch { /* 静默 */ }
   }
 
-  // Phase 1: Open share settings modal
-  const handleOpenShareSettings = (planId: string, e?: React.MouseEvent) => {
-    if (e) e.preventDefault()
-    setSelectedPlanId(planId)
-    setShareModalOpen(true)
-  }
-
   const from = (page - 1) * PAGE_SIZE + 1
   const to   = Math.min(page * PAGE_SIZE, total)
 
@@ -145,8 +151,8 @@ export default function PlansPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-gray-50"
-              style={{ border: '1px solid #CBD5E1', color: '#374151' }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+              style={{ border: '1px solid #E2E8F0', color: '#374151', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
             >
               <ArrowLeft size={14} />
             </Link>
@@ -304,7 +310,6 @@ export default function PlansPage() {
                 })
                 const isDeleting = deleting === plan.id
 
-                // 搜索时高亮匹配文字
                 const highlight = (text: string) => {
                   if (!search || !text) return text
                   const idx = text.toLowerCase().indexOf(search.toLowerCase())
@@ -329,98 +334,130 @@ export default function PlansPage() {
                     exit={{ opacity: 0, x: -20, height: 0, marginBottom: 0 }}
                     transition={{ duration: 0.28, delay: i < 6 ? i * 0.04 : 0 }}
                   >
-                    <div
-                      className="overflow-hidden"
-                      style={{
-                        background:   '#FFFFFF',
-                        border:       '1px solid #E5E7EB',
-                        borderRadius: 8,
-                        boxShadow:    '0 1px 4px rgba(0,0,0,0.05)',
-                        opacity:      isDeleting ? 0.5 : 1,
-                        transition:   'opacity 0.2s',
-                      }}
-                    >
-                      <Link href={`/plans/${plan.id}`} className="block p-5">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>
-                            {highlight(plan.title)}
-                          </h2>
-                          <span className="shrink-0 text-xs" style={{ color: '#94A3B8' }}>{date}</span>
-                        </div>
-                        {plan.summary && (
-                          <p className="text-sm line-clamp-2 mb-3" style={{ color: '#64748B' }}>{plan.summary}</p>
-                        )}
-                        <div className="flex flex-wrap gap-4">
-                          {plan.destination && (
-                            <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
-                              <MapPin size={12} />{highlight(plan.destination)}
-                            </span>
-                          )}
-                          {plan.days_count > 0 && (
-                            <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
-                              <Calendar size={12} />{plan.days_count} 天
-                            </span>
-                          )}
-                          {plan.budget_low > 0 && (
-                            <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
-                              <Wallet size={12} />¥{plan.budget_low}–{plan.budget_high}
-                            </span>
-                          )}
-                        </div>
-                      </Link>
+                    {(() => {
+                      const isPending = plan.status === 'pending'
+                      const isError   = plan.status === 'error' || plan.status === 'interrupted'
+                      const isBlocked = isPending || isError
 
-                      <div
-                        className="flex items-center justify-between px-5 py-2.5 border-t"
-                        style={{ borderColor: '#F3F4F6', background: '#FAFAFA' }}
-                      >
-                        <span className="text-xs" style={{ color: '#94A3B8' }}>
-                          {plan.start_date} {plan.end_date && `→ ${plan.end_date}`}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {/* Phase 1: Share Settings Button */}
-                          <button
-                            onClick={(e) => { e.preventDefault(); handleOpenShareSettings(plan.id, e) }}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
-                            title="分享设置"
-                            style={{
-                              background: 'transparent',
-                              color:      '#94A3B8',
-                              border:     '1px solid transparent',
-                            }}
-                          >
-                            <Share2 size={11} />
-                            <span>分享</span>
-                          </button>
+                      return (
+                        <div
+                          className="overflow-hidden"
+                          style={{
+                            background:   '#FFFFFF',
+                            border:       `1px solid ${isError ? '#FECACA' : '#E5E7EB'}`,
+                            borderRadius: 8,
+                            boxShadow:    '0 1px 4px rgba(0,0,0,0.05)',
+                            opacity:      isDeleting ? 0.5 : 1,
+                            transition:   'opacity 0.2s',
+                          }}
+                        >
+                          {/* 卡片主体 — pending/error 不可点击 */}
+                          {isBlocked ? (
+                            <div className="block p-5 cursor-default">
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <h2 className="font-semibold leading-snug" style={{ color: isPending ? '#94A3B8' : '#EF4444' }}>
+                                    {highlight(plan.title)}
+                                  </h2>
+                                  {isPending && (
+                                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                                      <Loader2 size={10} className="animate-spin" />规划中
+                                    </span>
+                                  )}
+                                  {isError && (
+                                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ background: '#FEF2F2', color: '#EF4444' }}>
+                                      <AlertCircle size={10} />规划失败
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="shrink-0 text-xs" style={{ color: '#94A3B8' }}>{date}</span>
+                              </div>
+                              {isPending && (
+                                <p className="text-xs" style={{ color: '#94A3B8' }}>行程正在生成中，请稍候...</p>
+                              )}
+                              {isError && (
+                                <p className="text-xs" style={{ color: '#94A3B8' }}>行程生成失败，可删除后重新规划</p>
+                              )}
+                              <div className="flex flex-wrap gap-4 mt-2">
+                                {plan.destination && (
+                                  <span className="flex items-center gap-1 text-xs" style={{ color: '#CBD5E1' }}>
+                                    <MapPin size={12} />{plan.destination}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <Link href={`/plans/${plan.id}`} className="block p-5">
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>
+                                  {highlight(plan.title)}
+                                </h2>
+                                <span className="shrink-0 text-xs" style={{ color: '#94A3B8' }}>{date}</span>
+                              </div>
+                              {plan.summary && (
+                                <p className="text-sm line-clamp-2 mb-3" style={{ color: '#64748B' }}>{plan.summary}</p>
+                              )}
+                              <div className="flex flex-wrap gap-4">
+                                {plan.destination && (
+                                  <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
+                                    <MapPin size={12} />{highlight(plan.destination)}
+                                  </span>
+                                )}
+                                {plan.days_count > 0 && (
+                                  <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
+                                    <Calendar size={12} />{plan.days_count} 天
+                                  </span>
+                                )}
+                                {plan.budget_low > 0 && (
+                                  <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
+                                    <Wallet size={12} />¥{plan.budget_low}–{plan.budget_high}
+                                  </span>
+                                )}
+                              </div>
+                            </Link>
+                          )}
 
-                          <button
-                            onClick={(e) => { e.preventDefault(); handleCopyLink(plan.id) }}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
-                            title="复制分享链接"
-                            style={{
-                              background: copiedId === plan.id ? '#F0FDF4' : 'transparent',
-                              color:      copiedId === plan.id ? '#16A34A' : '#94A3B8',
-                              border:     copiedId === plan.id ? '1px solid #BBF7D0' : '1px solid transparent',
-                            }}
+                          <div
+                            className="flex items-center justify-between px-5 py-2.5 border-t"
+                            style={{ borderColor: '#F3F4F6', background: '#FAFAFA' }}
                           >
-                            {copiedId === plan.id ? <CheckCircle size={11} /> : <Link2 size={11} />}
-                            {copiedId === plan.id ? '已复制' : '复制'}
-                          </button>
-                          <button
-                            onClick={(e) => { e.preventDefault(); handleDelete(plan.id) }}
-                            disabled={isDeleting}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all disabled:opacity-40"
-                            style={{
-                              background: confirmDelete === plan.id ? '#FEF2F2' : 'transparent',
-                              color:      confirmDelete === plan.id ? '#EF4444' : '#94A3B8',
-                              border:     confirmDelete === plan.id ? '1px solid #FECACA' : '1px solid transparent',
-                            }}
-                          >
-                            <Trash2 size={11} />
-                            {confirmDelete === plan.id ? '确认删除' : '删除'}
-                          </button>
+                            <span className="text-xs" style={{ color: '#94A3B8' }}>
+                              {plan.start_date} {plan.end_date && `→ ${plan.end_date}`}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {!isBlocked && (
+                                <button
+                                  onClick={(e) => { e.preventDefault(); handleCopyLink(plan.id) }}
+                                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
+                                  title="复制分享链接"
+                                  style={{
+                                    background: copiedId === plan.id ? '#F0FDF4' : 'transparent',
+                                    color:      copiedId === plan.id ? '#16A34A' : '#94A3B8',
+                                    border:     copiedId === plan.id ? '1px solid #BBF7D0' : '1px solid transparent',
+                                  }}
+                                >
+                                  {copiedId === plan.id ? <CheckCircle size={11} /> : <Link2 size={11} />}
+                                  {copiedId === plan.id ? '已复制' : '分享'}
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => { e.preventDefault(); handleDelete(plan.id) }}
+                                disabled={isDeleting}
+                                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all disabled:opacity-40"
+                                style={{
+                                  background: confirmDelete === plan.id ? '#FEF2F2' : 'transparent',
+                                  color:      confirmDelete === plan.id ? '#EF4444' : '#94A3B8',
+                                  border:     confirmDelete === plan.id ? '1px solid #FECACA' : '1px solid transparent',
+                                }}
+                              >
+                                <Trash2 size={11} />
+                                {confirmDelete === plan.id ? '确认删除' : '删除'}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      )
+                    })()}
                   </motion.div>
                 )
               })}
@@ -441,20 +478,6 @@ export default function PlansPage() {
           </div>
         )}
       </div>
-
-      {/* Phase 1: Share Settings Modal */}
-      {selectedPlanId && (
-        <ShareSettingsModal
-          open={shareModalOpen}
-          onClose={() => {
-            setShareModalOpen(false)
-            setSelectedPlanId(null)
-          }}
-          planId={selectedPlanId}
-          deviceId={deviceId}
-          onSave={() => fetchPlans(page)}
-        />
-      )}
     </main>
   )
 }

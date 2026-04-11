@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { FullItinerary } from '@/lib/agents/types'
+import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
    itineraryStore — 最终行程状态（纯内存 + Supabase 恢复）
@@ -70,7 +71,9 @@ export const useItineraryStore = create<ItineraryStore>()((set) => ({
     
     set({ isLoading: true })
     try {
-      const res = await fetch(`/api/plans/${planId}`)
+      const res = await fetch(`/api/plans/${planId}`, {
+        headers: { 'x-device-id': getDeviceId() },
+      })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       
       const { plan } = await res.json() as { plan?: Record<string, unknown> }

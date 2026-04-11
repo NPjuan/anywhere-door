@@ -169,7 +169,6 @@ export const HomeForm = memo(
                 pointerEvents: isDisabled ? 'none' : undefined,
                 transition: 'opacity 0.2s',
                 background: '#FFFFFF',
-                border: '1px solid #E5E7EB',
                 borderRadius: 8,
                 boxShadow:
                   '0 2px 8px rgba(0,0,0,0.06), 0 16px 40px rgba(0,0,0,0.08)',
@@ -235,7 +234,7 @@ export const HomeForm = memo(
                 <div className="flex items-center flex-wrap gap-2 mb-2">
                   <span
                     className="text-xs shrink-0"
-                    style={{ color: '#9CA3AF' }}
+                    style={{ color: '#6B7280' }}
                   >
                     旅行风格
                   </span>
@@ -263,7 +262,7 @@ export const HomeForm = memo(
                   })}
                   {/* 人数 — 靠右 */}
                   <div className="ml-auto flex items-center gap-1 shrink-0">
-                    <span className="text-xs" style={{ color: '#94A3B8' }}>
+                    <span className="text-xs" style={{ color: '#9CA3AF' }}>
                       共
                     </span>
                     <InputNumber
@@ -276,12 +275,12 @@ export const HomeForm = memo(
                       style={{
                         width: 28,
                         fontSize: 12,
-                        color: '#94A3B8',
+                        color: '#9CA3AF',
                         border: '1px solid #E5E7EB',
                         borderRadius: 4,
                       }}
                     />
-                    <span className="text-xs" style={{ color: '#94A3B8' }}>
+                    <span className="text-xs" style={{ color: '#9CA3AF' }}>
                       人出行
                     </span>
                   </div>
@@ -314,10 +313,10 @@ export const HomeForm = memo(
                   {/* 酒店地址 — 单独一行 */}
                   <div>
                     <label
-                      className="block text-xs font-medium mb-1.5"
+                      className="block text-xs mb-1.5"
                       style={{ color: '#6B7280' }}
                     >
-                      住宿地址 <span style={{ color: '#9CA3AF' }}>(选填)</span>
+                      住宿地址 <span>(选填)</span>
                     </label>
                     <div
                       style={{
@@ -339,11 +338,10 @@ export const HomeForm = memo(
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label
-                        className="block text-xs font-medium mb-1.5"
+                        className="block text-xs mb-1.5"
                         style={{ color: '#6B7280' }}
                       >
-                        必去地点{' '}
-                        <span style={{ color: '#9CA3AF' }}>(选填)</span>
+                        必去地点 <span>(选填)</span>
                       </label>
                       <div
                         style={{
@@ -387,11 +385,10 @@ export const HomeForm = memo(
                     </div>
                     <div>
                       <label
-                        className="block text-xs font-medium mb-1.5"
+                        className="block text-xs mb-1.5"
                         style={{ color: '#6B7280' }}
                       >
-                        不去地点{' '}
-                        <span style={{ color: '#9CA3AF' }}>(选填)</span>
+                        不去地点 <span>(选填)</span>
                       </label>
                       <div
                         style={{
@@ -539,11 +536,10 @@ const CityField = memo(
         <label
           htmlFor={uid}
           className="block text-xs mb-1"
-          style={{ color: '#9CA3AF' }}
+          style={{ color: '#6B7280' }}
         >
           {label}
         </label>
-
         <AutoComplete
           id={uid}
           value={value ? value.name : inputVal}
@@ -629,7 +625,7 @@ const CityField = memo(
           ) : (
             <div
               className="mt-1 flex items-center gap-1.5 text-xs"
-              style={{ color: '#94A3B8', paddingLeft: 2 }}
+              style={{ color: '#9CA3AF', paddingLeft: 2 }}
             >
               <span style={{ color: '#CBD5E1' }}>✈</span>
               {airportOptions[0].label}
@@ -679,16 +675,15 @@ const DateField = memo(
       needConfirm: true,
       suffixIcon: null,
       showNow: false,
-      styles: { input: { fontSize: 12, color: '#94A3B8' } },
-      popupStyle: { fontSize: 12 },
+      styles: { input: { fontSize: 13, color: '#9CA3AF' } },
+      popupStyle: { fontSize: 13 },
     };
 
     return (
       <div className="px-4 py-2.5">
-        <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>
+        <label className="block text-xs mb-1" style={{ color: '#6B7280' }}>
           旅行时间
-        </label>
-        <DatePicker.RangePicker
+        </label>        <DatePicker.RangePicker
           value={[
             startDate ? dayjs(startDate) : null,
             endDate ? dayjs(endDate) : null,
@@ -720,8 +715,7 @@ const DateField = memo(
           className="mt-1 flex items-center gap-1"
           style={{ paddingLeft: 2, height: 24 }}
         >
-          <span style={{ color: '#CBD5E1', fontSize: 11 }}>✈</span>
-          <TimePicker
+          <span style={{ color: '#CBD5E1', fontSize: 11 }}>✈</span>          <TimePicker
             {...timePickerShared}
             value={arrivalTime ? dayjs(arrivalTime, 'HH:mm') : null}
             onChange={(t) => onArrivalTimeChange(t ? t.format('HH:mm') : '')}
