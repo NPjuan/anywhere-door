@@ -38,16 +38,16 @@ alter table plans add column if not exists status          text not null default
 alter table plans add column if not exists planning_params jsonb;
 alter table plans add column if not exists agent_progress  jsonb;  -- 各 agent 完成状态快照
 
--- 分享功能字段（Phase 1: Basic Sharing）
-alter table plans add column if not exists share_enabled   boolean     default false;  -- 是否开启分享
-alter table plans add column if not exists share_token     text;                       -- 分享令牌（用于验证）
-alter table plans add column if not exists share_expires_at timestamptz;              -- 分享过期时间
+-- 分享功能：有 planId 即可访问，无需 token 或过期控制
+-- alter table plans add column if not exists share_enabled    boolean     default false;
+-- alter table plans add column if not exists share_token      text;
+-- alter table plans add column if not exists share_expires_at timestamptz;
 
 -- itinerary 允许为 null（pending 状态下尚无结果）
 alter table plans alter column itinerary drop not null;
 
 
--- ── 4. 分享功能索引 ──────────────────────────────────────
+-- ── 4. 索引 ──────────────────────────────────────────────
 create index if not exists plans_share_token_idx on plans (share_token) where share_token is not null;
 create index if not exists plans_share_enabled_idx on plans (share_enabled) where share_enabled = true;
 

@@ -11,31 +11,6 @@ import { supabase } from '@/lib/supabase'
    - PATCH: 支持更新分享设置（share_enabled, share_expires_at）
    ============================================================ */
 
-/**
- * 检查访问权限
- * @returns true 如果允许访问，false 否则
- */
-function checkShareAccess(
-  ownerDeviceId: string,
-  currentDeviceId: string,
-  shareEnabled: boolean | null,
-  shareExpiresAt: string | null,
-): boolean {
-  // 所有者始终可以访问
-  if (currentDeviceId === ownerDeviceId) return true
-
-  // 访客：检查分享是否启用
-  if (!shareEnabled) return false
-
-  // 访客：检查是否已过期
-  if (shareExpiresAt) {
-    const expiresAt = new Date(shareExpiresAt)
-    if (new Date() > expiresAt) return false
-  }
-
-  return true
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
@@ -49,23 +24,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
   }
 
-  // Phase 1: Check share permissions
-  // 从 header 读取 deviceId（服务端不能用 getDeviceId()，那是浏览器 localStorage API）
-  const currentDeviceId = _req.headers.get('x-device-id') ?? ''
-  const hasAccess = checkShareAccess(
-    data.device_id,
-    currentDeviceId,
-    data.share_enabled ?? false,
-    data.share_expires_at,
-  )
-
-  if (!hasAccess) {
-    return NextResponse.json(
-      { error: 'Access denied: Plan is not shared or sharing has expired' },
-      { status: 403 },
-    )
-  }
-
   return NextResponse.json({ plan: data })
 }
 
@@ -76,44 +34,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     itinerary,
     status,
     agentProgress,
-    shareEnabled,
-    shareExpiresAt,
   } = body as {
     itinerary?: Record<string, unknown>
     status?: string
     agentProgress?: Record<string, unknown>
-    shareEnabled?: boolean
-    shareExpiresAt?: string | null
-  }
-
-  // Phase 1: Handle share settings update (owner only)
-  if ((shareEnabled !== undefined || shareExpiresAt !== undefined) && !itinerary && !status) {
-    // Verify owner
-    const deviceId = req.nextUrl.searchParams.get('deviceId')
-    if (!deviceId) {
-      return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
-    }
-
-    const { data: plan, error: fetchError } = await supabase
-      .from('plans')
-      .select('device_id')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !plan || plan.device_id !== deviceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const patch: Record<string, unknown> = {}
-    if (shareEnabled !== undefined) patch.share_enabled = shareEnabled
-    if (shareExpiresAt !== undefined) patch.share_expires_at = shareExpiresAt
-
-    const { error } = await supabase.from('plans').update(patch).eq('id', id)
-    if (error) {
-      console.error('[PATCH /api/plans/[id] share]', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ ok: true })
   }
 
   // 仅更新状态或 agent 进度
