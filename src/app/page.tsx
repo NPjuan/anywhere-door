@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Spin } from 'antd';
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground';
 import { AgentStatusPanel } from '@/components/agents/AgentStatusPanel';
 import { DayTimeline } from '@/components/itinerary/DayTimeline';
@@ -337,29 +338,10 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-3"
         >
-          {/* 门形状 loading 图标 */}
-          <div className="relative" style={{ width: 48, height: 56 }}>
-            <div
-              className="w-full h-full rounded-t-lg"
-              style={{ background: 'linear-gradient(160deg, #2563EB 0%, #6366f1 100%)', opacity: 0.15 }}
-            />
-            <motion.div
-              className="absolute inset-0 rounded-t-lg"
-              style={{ background: 'linear-gradient(160deg, #2563EB 0%, #6366f1 100%)', transformOrigin: 'left center' }}
-              animate={{ scaleX: [1, 0.15, 1] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
-            />
-          </div>
-          <motion.p
-            className="text-sm font-medium"
-            style={{ color: '#2563EB' }}
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            任意门启动中...
-          </motion.p>
+          <Spin size="large" />
+          <p className="text-sm" style={{ color: '#94A3B8' }}>任意门启动中...</p>
         </motion.div>
       </main>
     );
