@@ -84,7 +84,7 @@ function reducer(state: HomeFlowState, action: HomeAction): HomeFlowState {
     case 'SET_WARNING':
       return { ...state, warning: action.warning };
     case 'SET_ERROR':
-      return { ...state, error: action.error, step: 'form', warning: null };
+      return { ...state, error: action.error, step: 'form', warning: null, previewPrompt: '', finalPrompt: '' };
     case 'INTERRUPT_TO_PREVIEW':
       return { ...state, step: 'prompt-preview', warning: null, error: null };
     case 'RESET':

@@ -212,9 +212,12 @@ export default function HomePage() {
     }
   }, [step]);
 
+  const isSubmittingRef = useRef(false);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid()) return;
+    if (!isValid() || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setTimeout(() => { isSubmittingRef.current = false; }, 2000);
 
     generatePromptPreview({
       originCode: params.origin!.code,
