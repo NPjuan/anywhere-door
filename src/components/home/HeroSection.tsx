@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CN_SUBS = [
@@ -20,15 +20,14 @@ const LINES = [
 
 export const HeroSection = memo(() => {
   const [idx, setIdx] = useState(0);
-  const [cnIdx, setCnIdx] = useState(0);
+  const cnIdxRef = useRef(0);
 
   useEffect(() => {
     const t = setInterval(() => {
       setIdx((i) => {
         const next = (i + 1) % LINES.length;
-        // 每次轮到中文槽位时，切换到下一句中文
         if (LINES[next].sub === null) {
-          setCnIdx((c) => (c + 1) % CN_SUBS.length);
+          cnIdxRef.current = (cnIdxRef.current + 1) % CN_SUBS.length;
         }
         return next;
       });
@@ -37,7 +36,8 @@ export const HeroSection = memo(() => {
   }, []);
 
   const current = LINES[idx];
-  const sub = current.sub ?? CN_SUBS[cnIdx];
+  // cnIdxRef 在 setIdx updater 里同步更新，render 时已是最新值
+  const sub = current.sub ?? CN_SUBS[cnIdxRef.current];
 
   return (
     <div className="text-center py-8 md:py-10">
