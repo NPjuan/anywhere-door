@@ -713,17 +713,13 @@ export function useHomeFlow() {
           > | null
 
           // 判断是否需要重启：
-          // orchestrate-bg 正常完成必然写 synthesis.status = 'waiting'
-          // 两种需要重启的情况：
-          // 1. synthesis 没到 waiting，且没有 agent 在 running → 明显卡死
-          // 2. synthesis 没到 waiting，有 agent 还在 running，但 plan 已保存超过 5 分钟 → 僵尸状态
+          // 只有明确超时（超过 8 分钟）且 synthesis 还没完成，才认为进程已死
+          // 刷新页面时绝大多数情况下 orchestrate-bg 还在 Vercel 上跑，不应重启
           const synthStatus = progress?.synthesis?.status
-          const parallelAgents = ['poi', 'route', 'tips', 'xhs'] as const
-          const hasRunningAgent = parallelAgents.some(id => progress?.[id]?.status === 'running')
           const synthTerminal = synthStatus === 'waiting' || synthStatus === 'running' || synthStatus === 'done'
           const savedAt = detail?.plan?.saved_at ? new Date(detail.plan.saved_at as string).getTime() : 0
-          const isStale = Date.now() - savedAt > 5 * 60 * 1000  // 超过 5 分钟
-          const needsRestart = !synthTerminal && (!hasRunningAgent || isStale)
+          const isDefinitelyDead = Date.now() - savedAt > 8 * 60 * 1000  // 超过 8 分钟才认为死了
+          const needsRestart = !synthTerminal && isDefinitelyDead
 
           // 恢复 UI 进度展示
           if (progress) {
