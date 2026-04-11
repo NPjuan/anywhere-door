@@ -127,8 +127,8 @@ export default function PlansPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-white"
-              style={{ border: '1px solid #E5E7EB', color: '#64748B' }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-gray-50"
+              style={{ border: '1px solid #CBD5E1', color: '#374151' }}
             >
               <ArrowLeft size={14} />
             </Link>
