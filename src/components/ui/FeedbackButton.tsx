@@ -197,7 +197,7 @@ export function FeedbackButton() {
                         style={{ color: '#374151' }}
                       >
                         联系方式
-                        <span className="ml-1 font-normal" style={{ color: '#9CA3AF' }}>（可选，方便我们回复你）</span>
+                        <span className="ml-1 font-normal" style={{ color: '#9CA3AF' }}>（可选，方便我回复你）</span>
                       </label>
                       <input
                         type="text"

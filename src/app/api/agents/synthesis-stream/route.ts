@@ -1,5 +1,6 @@
 
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { streamText } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { SYNTHESIS_SYSTEM_PROMPT } from '@/lib/agents/prompts'
@@ -16,10 +17,14 @@ export const maxDuration = 300
    ============================================================ */
 
 export async function POST(req: NextRequest) {
-  const { planId } = await req.json()
-  if (!planId) {
+  const body = await req.json()
+
+  const schema = z.object({ planId: z.string().min(1) })
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
     return new Response(JSON.stringify({ error: 'Missing planId' }), { status: 400 })
   }
+  const { planId } = parsed.data
 
   // 从 DB 读取 synthesis 输入（由 orchestrate-bg 预先存入）
   const { data, error: dbError } = await supabase
@@ -174,7 +179,7 @@ ${agentDataSection}${poiCoordsSection}
 请输出完整 FullItinerary JSON，严格遵守以下 schema：
 - days: 数组，每天包含 day(数字)、date(YYYY-MM-DD)、title(中文标题)、morning/afternoon/evening(活动数组)
 - 每个活动包含：time(HH:mm)、name、description、duration(如"2小时")、cost(可选)、transport(可选)
-- 活动的 poi 字段：景点/餐厅/公园/博物馆等实地地点必须输出 poi，优先用「地点坐标字典」中的坐标，字典中没有的根据知识估算真实坐标（不要省略）。只有"返回酒店""休息""整理行李""前往机场"等非实地活动可以不输出 poi
+- 活动的 poi 字段：所有涉及实际地点的活动都必须输出 poi，包括景点、餐厅、公园、博物馆、酒店、机场等。优先用「地点坐标字典」中的坐标，字典中没有的根据知识估算真实坐标（不要省略）。"返回酒店"要填酒店的 poi，"前往机场"要填机场的 poi，"入住酒店"要填酒店的 poi。只有"整理行李""休息""在房间休息""补觉"等完全不涉及具体地点的活动才可以不输出 poi
 - 顶层字段：id, title, summary, destination, origin, startDate, endDate, userPrompt, days, xhsNotes, packingTips, warnings, generatedAt
 - budget 对象必须包含 low 和 high 两个数字（单位人民币），如 {"low": 2000, "high": 3500, "currency": "CNY"}`,
         })

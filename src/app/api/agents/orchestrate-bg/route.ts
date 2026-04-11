@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { POPULAR_CITIES } from '@/lib/cities'
 import { supabase } from '@/lib/supabase'
 import { runPoiAgent, runRoutePlanAgent, runContentAgent, runXhsAgent } from '@/lib/agents/runners'
+import { rateLimit } from '@/lib/rateLimit'
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
@@ -164,10 +166,33 @@ async function runPlanningInBackground(
 }
 
 export async function POST(req: NextRequest) {
-  const { planId, originCode, destinationCode, startDate, endDate, prompt } = await req.json()
+  // 限流：每个 IP 每分钟最多 5 次（防止 AI 资源滥用）
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? 'unknown'
+  const limit = rateLimit(ip, { limit: 5, windowMs: 60_000 })
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: '请求过于频繁，请稍后再试', retryAfter: Math.ceil((limit.resetAt - Date.now()) / 1000) },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((limit.resetAt - Date.now()) / 1000)) } }
+    )
+  }
 
-  if (!planId) return NextResponse.json({ error: 'Missing planId' }, { status: 400 })
+  const body = await req.json()
 
+  const schema = z.object({
+    planId:          z.string().min(1),
+    originCode:      z.string().min(1),
+    destinationCode: z.string().min(1),
+    startDate:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+    endDate:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+    prompt:          z.string().default(''),
+  })
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })
+  }
+
+  const { planId, originCode, destinationCode, startDate, endDate, prompt } = parsed.data
   await runPlanningInBackground(planId, originCode, destinationCode, startDate, endDate, prompt)
 
   return NextResponse.json({ ok: true, planId }, { status: 200 })

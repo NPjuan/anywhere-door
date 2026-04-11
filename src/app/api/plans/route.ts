@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 
 /* ============================================================
@@ -10,7 +11,7 @@ import { supabase } from '@/lib/supabase'
    create table plans (
      id               text        primary key,
      device_id        text        not null,
-     status           text        not null default 'done',  -- 'pending' | 'done' | 'error'
+     status           text        not null default 'done',  -- 'pending' | 'done' | 'error' | 'interrupted'
      title            text        not null,
      summary          text,
      destination      text,
@@ -21,12 +22,14 @@ import { supabase } from '@/lib/supabase'
      budget_high      numeric,
      itinerary        jsonb,
      planning_params  jsonb,      -- 用于刷新恢复规划
+     agent_progress   jsonb,      -- 各 Agent 实时状态（poi/route/tips/xhs/synthesis）
      saved_at         timestamptz not null default now()
    );
 
    -- 如果表已存在，添加新列：
    alter table plans add column if not exists status text not null default 'done';
    alter table plans add column if not exists planning_params jsonb;
+   alter table plans add column if not exists agent_progress jsonb;
 
    create index on plans (device_id);
    create index on plans (saved_at desc);
@@ -38,18 +41,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
   }
 
-  const page  = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10))
-  const limit = Math.min(50, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '10', 10)))
-  const from  = (page - 1) * limit
-  const to    = from + limit - 1
+  const page   = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10))
+  const limit  = Math.min(50, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '10', 10)))
+  const search = req.nextUrl.searchParams.get('search')?.trim() ?? ''
+  const from   = (page - 1) * limit
+  const to     = from + limit - 1
 
-  // 同时查总数和当前页数据
-  const { data, error, count } = await supabase
+  let query = supabase
     .from('plans')
     .select('id, status, title, summary, destination, start_date, end_date, days_count, budget_low, budget_high, saved_at', { count: 'exact' })
     .eq('device_id', deviceId)
     .order('saved_at', { ascending: false })
     .range(from, to)
+
+  // 模糊搜索：匹配目的地或标题
+  if (search) {
+    query = query.or(`destination.ilike.%${search}%,title.ilike.%${search}%`)
+  }
+
+  const { data, error, count } = await query
 
   if (error) {
     console.error('[GET /api/plans]', error)
@@ -67,16 +77,20 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { deviceId, itinerary, planningParams, status } = body as {
-    deviceId:       string
-    itinerary?:     Record<string, unknown>
-    planningParams?: Record<string, unknown>
-    status?:        string
+
+  const schema = z.object({
+    deviceId:       z.string().min(1),
+    itinerary:      z.record(z.string(), z.unknown()).optional(),
+    planningParams: z.record(z.string(), z.unknown()).optional(),
+    status:         z.enum(['pending', 'done', 'error', 'interrupted']).optional(),
+  })
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })
   }
 
-  if (!deviceId) {
-    return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
-  }
+  const { deviceId, itinerary, planningParams, status } = parsed.data
 
   const id = `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const planStatus = status ?? (itinerary ? 'done' : 'pending')

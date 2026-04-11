@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Pagination, Spin } from 'antd'
+import { ArrowLeft, MapPin, Calendar, Wallet, Trash2, FolderOpen, Plus, RefreshCw, AlertCircle, Link2, CheckCircle, Search, X } from 'lucide-react'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
 import { getDeviceId } from '@/lib/deviceId'
 
 /* ============================================================
-   /plans — 已保存的旅行计划列表（Supabase）分页版
+   /plans — 已保存的旅行计划列表（Supabase）分页 + 搜索版
    ============================================================ */
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 6
 
 interface PlanRow {
   id:          string
@@ -36,14 +37,24 @@ export default function PlansPage() {
   const [page, setPage]             = useState(1)
   const [total, setTotal]           = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [copiedId, setCopiedId]     = useState<string | null>(null)
+  const [search, setSearch]         = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const fetchPlans = useCallback(async (p = 1) => {
+  const fetchPlans = useCallback(async (p = 1, q = search) => {
     setLoading(true)
     setError(null)
     const deviceId = getDeviceId()
     if (!deviceId) { setLoading(false); return }
     try {
-      const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=${p}&limit=${PAGE_SIZE}`)
+      const params = new URLSearchParams({
+        deviceId,
+        page:  String(p),
+        limit: String(PAGE_SIZE),
+      })
+      if (q) params.set('search', q)
+      const res = await fetch(`/api/plans?${params}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setPlans(data.plans ?? [])
@@ -55,9 +66,25 @@ export default function PlansPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [search])
 
   useEffect(() => { fetchPlans(1) }, [fetchPlans])
+
+  // 搜索输入防抖 300ms
+  const handleSearchChange = (val: string) => {
+    setSearchInput(val)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setSearch(val)
+      fetchPlans(1, val)
+    }, 300)
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSearch('')
+    fetchPlans(1, '')
+  }
 
   const handleDelete = async (id: string) => {
     if (confirmDelete !== id) {
@@ -69,7 +96,6 @@ export default function PlansPage() {
     const deviceId = getDeviceId()
     try {
       await fetch(`/api/plans/${id}?deviceId=${encodeURIComponent(deviceId)}`, { method: 'DELETE' })
-      // 删除后刷新当前页（若当前页变空则回上一页）
       const newTotal = total - 1
       const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE))
       const targetPage = page > newTotalPages ? newTotalPages : page
@@ -78,6 +104,14 @@ export default function PlansPage() {
       setDeleting(null)
       setConfirm(null)
     }
+  }
+
+  const handleCopyLink = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/plans/${id}`)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2200)
+    } catch { /* 静默 */ }
   }
 
   const from = (page - 1) * PAGE_SIZE + 1
@@ -89,7 +123,7 @@ export default function PlansPage() {
 
       <div className="relative max-w-3xl mx-auto px-4 py-16" style={{ zIndex: 1 }}>
         {/* 顶部导航 */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Link
               href="/"
@@ -101,7 +135,13 @@ export default function PlansPage() {
             <div>
               <h1 className="text-xl font-bold" style={{ color: '#0F172A' }}>我的计划</h1>
               <p className="text-xs mt-0.5" style={{ color: '#94A3B8' }}>
-                {loading ? '加载中...' : total > 0 ? `共 ${total} 个行程，第 ${from}–${to} 条` : '还没有保存的计划'}
+                {loading
+                  ? '加载中...'
+                  : total > 0
+                    ? search
+                      ? `搜索「${search}」找到 ${total} 个行程`
+                      : `共 ${total} 个行程，第 ${from}–${to} 条`
+                    : search ? `没有匹配「${search}」的行程` : '还没有保存的计划'}
               </p>
             </div>
           </div>
@@ -129,6 +169,47 @@ export default function PlansPage() {
           </div>
         </div>
 
+        {/* 搜索框 */}
+        <div className="relative mb-5">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: '#94A3B8' }}
+          />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder="搜索目的地或行程名称..."
+            className="w-full text-sm outline-none transition-colors"
+            style={{
+              background:   '#FFFFFF',
+              border:       '1px solid #E5E7EB',
+              borderRadius: 8,
+              padding:      '9px 36px',
+              color:        '#111827',
+              height:       38,
+            }}
+            onFocus={e => e.currentTarget.style.borderColor = '#93C5FD'}
+            onBlur={e => e.currentTarget.style.borderColor = '#E5E7EB'}
+          />
+          <AnimatePresence>
+            {searchInput && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.12 }}
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded-full cursor-pointer"
+                style={{ background: '#CBD5E1', border: 'none', color: '#FFFFFF' }}
+              >
+                <X size={10} />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* 错误状态 */}
         {error && (
           <div
@@ -148,40 +229,10 @@ export default function PlansPage() {
           </div>
         )}
 
-        {/* 加载骨架 */}
+        {/* 加载状态 */}
         {loading && !error && (
-          <div className="space-y-3">
-            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-lg p-5"
-                style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E5E7EB',
-                  animation: `skeleton-pulse 1.6s ease-in-out ${i * 0.08}s infinite`,
-                }}
-              >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="h-5 rounded" style={{ width: `${45 + (i % 3) * 12}%`, background: '#F1F5F9' }} />
-                  <div className="h-4 rounded shrink-0" style={{ width: 64, background: '#F1F5F9' }} />
-                </div>
-                <div className="space-y-2 mb-4">
-                  <div className="h-3.5 rounded" style={{ width: '100%', background: '#F1F5F9' }} />
-                  <div className="h-3.5 rounded" style={{ width: '72%', background: '#F1F5F9' }} />
-                </div>
-                <div className="flex gap-3">
-                  <div className="h-3.5 rounded" style={{ width: 48, background: '#EFF6FF' }} />
-                  <div className="h-3.5 rounded" style={{ width: 36, background: '#EFF6FF' }} />
-                  <div className="h-3.5 rounded" style={{ width: 80, background: '#EFF6FF' }} />
-                </div>
-              </div>
-            ))}
-            <style dangerouslySetInnerHTML={{ __html: `
-              @keyframes skeleton-pulse {
-                0%, 100% { opacity: 1; }
-                50%       { opacity: 0.5; }
-              }
-            `}} />
+          <div className="flex justify-center py-32">
+            <Spin size="large" />
           </div>
         )}
 
@@ -196,14 +247,32 @@ export default function PlansPage() {
               <FolderOpen size={28} style={{ color: '#CBD5E1' }} />
             </div>
             <div className="text-center">
-              <p className="font-medium" style={{ color: '#475569' }}>还没有保存的计划</p>
-              <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>生成行程后会自动保存到这里</p>
+              {search ? (
+                <>
+                  <p className="font-medium" style={{ color: '#475569' }}>没有找到相关行程</p>
+                  <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>试试其他关键词，或</p>
+                  <button
+                    onClick={handleClearSearch}
+                    className="text-sm mt-1 cursor-pointer"
+                    style={{ color: '#2563EB', background: 'none', border: 'none' }}
+                  >
+                    查看全部计划
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium" style={{ color: '#475569' }}>还没有保存的计划</p>
+                  <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>生成行程后会自动保存到这里</p>
+                </>
+              )}
             </div>
-            <Link href="/"
-              className="mt-2 px-5 py-2.5 rounded-lg text-sm font-medium"
-              style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#2563EB' }}>
-              去生成行程
-            </Link>
+            {!search && (
+              <Link href="/"
+                className="mt-2 px-5 py-2.5 rounded-lg text-sm font-medium"
+                style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#2563EB' }}>
+                去生成行程
+              </Link>
+            )}
           </motion.div>
         )}
 
@@ -216,6 +285,23 @@ export default function PlansPage() {
                   month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                 })
                 const isDeleting = deleting === plan.id
+
+                // 搜索时高亮匹配文字
+                const highlight = (text: string) => {
+                  if (!search || !text) return text
+                  const idx = text.toLowerCase().indexOf(search.toLowerCase())
+                  if (idx === -1) return text
+                  return (
+                    <>
+                      {text.slice(0, idx)}
+                      <mark style={{ background: '#FEF08A', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
+                        {text.slice(idx, idx + search.length)}
+                      </mark>
+                      {text.slice(idx + search.length)}
+                    </>
+                  )
+                }
+
                 return (
                   <motion.div
                     key={plan.id}
@@ -226,18 +312,21 @@ export default function PlansPage() {
                     transition={{ duration: 0.28, delay: i < 6 ? i * 0.04 : 0 }}
                   >
                     <div
-                      className="rounded-lg overflow-hidden"
+                      className="overflow-hidden"
                       style={{
-                        background: '#FFFFFF',
-                        border: '1px solid #E5E7EB',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                        opacity: isDeleting ? 0.5 : 1,
-                        transition: 'opacity 0.2s',
+                        background:   '#FFFFFF',
+                        border:       '1px solid #E5E7EB',
+                        borderRadius: 8,
+                        boxShadow:    '0 1px 4px rgba(0,0,0,0.05)',
+                        opacity:      isDeleting ? 0.5 : 1,
+                        transition:   'opacity 0.2s',
                       }}
                     >
                       <Link href={`/plans/${plan.id}`} className="block p-5">
                         <div className="flex items-start justify-between gap-3 mb-2">
-                          <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>{plan.title}</h2>
+                          <h2 className="font-semibold leading-snug" style={{ color: '#0F172A' }}>
+                            {highlight(plan.title)}
+                          </h2>
                           <span className="shrink-0 text-xs" style={{ color: '#94A3B8' }}>{date}</span>
                         </div>
                         {plan.summary && (
@@ -246,7 +335,7 @@ export default function PlansPage() {
                         <div className="flex flex-wrap gap-4">
                           {plan.destination && (
                             <span className="flex items-center gap-1 text-xs" style={{ color: '#2563EB' }}>
-                              <MapPin size={12} />{plan.destination}
+                              <MapPin size={12} />{highlight(plan.destination)}
                             </span>
                           )}
                           {plan.days_count > 0 && (
@@ -269,19 +358,34 @@ export default function PlansPage() {
                         <span className="text-xs" style={{ color: '#94A3B8' }}>
                           {plan.start_date} {plan.end_date && `→ ${plan.end_date}`}
                         </span>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleDelete(plan.id) }}
-                          disabled={isDeleting}
-                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all disabled:opacity-40"
-                          style={{
-                            background: confirmDelete === plan.id ? '#FEF2F2' : 'transparent',
-                            color:      confirmDelete === plan.id ? '#EF4444' : '#94A3B8',
-                            border:     confirmDelete === plan.id ? '1px solid #FECACA' : '1px solid transparent',
-                          }}
-                        >
-                          <Trash2 size={11} />
-                          {confirmDelete === plan.id ? '确认删除' : '删除'}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleCopyLink(plan.id) }}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all"
+                            title="复制分享链接"
+                            style={{
+                              background: copiedId === plan.id ? '#F0FDF4' : 'transparent',
+                              color:      copiedId === plan.id ? '#16A34A' : '#94A3B8',
+                              border:     copiedId === plan.id ? '1px solid #BBF7D0' : '1px solid transparent',
+                            }}
+                          >
+                            {copiedId === plan.id ? <CheckCircle size={11} /> : <Link2 size={11} />}
+                            {copiedId === plan.id ? '已复制' : '分享'}
+                          </button>
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleDelete(plan.id) }}
+                            disabled={isDeleting}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg cursor-pointer transition-all disabled:opacity-40"
+                            style={{
+                              background: confirmDelete === plan.id ? '#FEF2F2' : 'transparent',
+                              color:      confirmDelete === plan.id ? '#EF4444' : '#94A3B8',
+                              border:     confirmDelete === plan.id ? '1px solid #FECACA' : '1px solid transparent',
+                            }}
+                          >
+                            <Trash2 size={11} />
+                            {confirmDelete === plan.id ? '确认删除' : '删除'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -293,53 +397,14 @@ export default function PlansPage() {
 
         {/* 分页 */}
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
-            <button
-              onClick={() => fetchPlans(page - 1)}
-              disabled={page <= 1}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ border: '1px solid #E5E7EB', color: '#64748B', background: '#FFFFFF' }}
-            >
-              <ChevronLeft size={14} />
-              上一页
-            </button>
-
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                // 只显示：第1页、最后一页、当前页前后各1页，其余用省略号
-                const show = p === 1 || p === totalPages || Math.abs(p - page) <= 1
-                const showEllipsisBefore = p === page - 2 && page - 2 > 1
-                const showEllipsisAfter  = p === page + 2 && page + 2 < totalPages
-                if (showEllipsisBefore || showEllipsisAfter) {
-                  return <span key={p} className="px-1 text-xs" style={{ color: '#CBD5E1' }}>···</span>
-                }
-                if (!show) return null
-                return (
-                  <button
-                    key={p}
-                    onClick={() => fetchPlans(p)}
-                    className="w-8 h-8 rounded-lg text-xs font-medium transition-all"
-                    style={{
-                      background: p === page ? '#2563EB' : '#FFFFFF',
-                      color:      p === page ? '#FFFFFF' : '#64748B',
-                      border:     `1px solid ${p === page ? '#2563EB' : '#E5E7EB'}`,
-                    }}
-                  >
-                    {p}
-                  </button>
-                )
-              })}
-            </div>
-
-            <button
-              onClick={() => fetchPlans(page + 1)}
-              disabled={page >= totalPages}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ border: '1px solid #E5E7EB', color: '#64748B', background: '#FFFFFF' }}
-            >
-              下一页
-              <ChevronRight size={14} />
-            </button>
+          <div className="flex justify-center mt-6">
+            <Pagination
+              current={page}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onChange={(p) => fetchPlans(p)}
+              showSizeChanger={false}
+            />
           </div>
         )}
       </div>

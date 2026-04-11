@@ -39,6 +39,7 @@ AI_PROVIDER=deepseek      # 切换为 claude
 ## 文档
 
 - [架构文档](./docs/ARCHITECTURE.md) — 项目架构、核心流程、API 文档
+- [分享链接](./docs/SHARE.md) — 分享链接实现、访客/本人判断、OG 元信息
 
 ## 数据库初始化
 

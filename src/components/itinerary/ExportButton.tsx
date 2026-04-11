@@ -8,6 +8,8 @@ import { downloadDayAsImage, downloadAllDays } from '@/lib/itineraryCanvas'
 
 interface ExportButtonProps {
   itinerary: FullItinerary
+  /** 外部传入时优先使用，解决分享页 store 内 planId 为 null 的问题 */
+  planId?: string | null
 }
 
 const BTN: React.CSSProperties = {
@@ -26,13 +28,14 @@ const BTN: React.CSSProperties = {
   transition:   'background 0.15s',
 }
 
-export function ExportButton({ itinerary }: ExportButtonProps) {
+export function ExportButton({ itinerary, planId: planIdProp }: ExportButtonProps) {
   const [copied,      setCopied]      = useState(false)
   const [linkCopied,  setLinkCopied]  = useState(false)
   const [showDl,      setShowDl]      = useState(false)
   const [downloading, setDownloading] = useState(false)
   const dlRef  = useRef<HTMLDivElement>(null)
-  const planId     = useItineraryStore((s) => s.planId)
+  const planIdFromStore = useItineraryStore((s) => s.planId)
+  const planId     = planIdProp ?? planIdFromStore
   const activeDay  = useItineraryStore((s) => s.activeDay)
   const setActiveDay = useItineraryStore((s) => s.setActiveDay)
 

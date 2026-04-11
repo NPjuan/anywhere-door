@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 
 /* ============================================================
@@ -17,10 +18,21 @@ import { supabase } from '@/lib/supabase'
    ============================================================ */
 
 export async function POST(req: NextRequest) {
-  const { deviceId, contact, content } = await req.json()
+  const body = await req.json()
 
-  if (!deviceId) return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
-  if (!content?.trim()) return NextResponse.json({ error: 'Missing content' }, { status: 400 })
+  const schema = z.object({
+    deviceId: z.string().min(1),
+    contact:  z.string().max(200).optional().nullable(),
+    content:  z.string().min(1, '反馈内容不能为空').max(2000, '反馈内容不超过 2000 字'),
+  })
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0]?.message ?? 'Invalid request'
+    return NextResponse.json({ error: firstIssue }, { status: 400 })
+  }
+
+  const { deviceId, contact, content } = parsed.data
 
   const { error } = await supabase.from('feedbacks').insert({
     device_id: deviceId,

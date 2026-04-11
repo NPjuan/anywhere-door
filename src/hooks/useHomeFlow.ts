@@ -548,7 +548,7 @@ export function useHomeFlow() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'error' }),
-        }).catch(() => {});
+        }).catch((e) => console.warn('[useHomeFlow] Failed to mark plan as error:', e));
       }
     },
     [updateAgent, startPollingForPlan, stopPolling]
@@ -682,7 +682,7 @@ export function useHomeFlow() {
                 endDate:         pp.endDate         as string,
                 prompt:          savedFinalPrompt || (pp.prompt as string) || '',
               }),
-            }).catch(() => {})
+            }).catch((e) => console.warn('[useHomeFlow] Failed to restart orchestrate-bg:', e))
           }
 
           // 不管是否重启，都开始轮询（等待 synthesis waiting 信号）
@@ -694,12 +694,13 @@ export function useHomeFlow() {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: 'error' }),
-            }).catch(() => {});
+            }).catch((e) => console.warn('[useHomeFlow] Failed to mark plan as error:', e));
           }
         }
         // done / interrupted / error → 只恢复表单，不进入规划流程
       })
-      .catch(() => {
+      .catch((e) => {
+        console.warn('[useHomeFlow] Failed to restore plan on mount:', e);
         /* 静默失败 */
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -842,7 +843,7 @@ export function useHomeFlow() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'interrupted' }),
-      }).catch(() => {});
+      }).catch((e) => console.warn('[useHomeFlow] Failed to mark plan as interrupted:', e));
       activePlanId = null;
     }
   }, [resetAgents, stopPolling]);
@@ -861,7 +862,7 @@ export function useHomeFlow() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'error' }),
-      }).catch(() => {});
+      }).catch((e) => console.warn('[useHomeFlow] Failed to mark plan as error on goBack:', e));
       activePlanId = null;
     }
   }, [clearItinerary, resetAgents, stopPolling]);
