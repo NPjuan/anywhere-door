@@ -73,9 +73,9 @@ export async function runPoiAgent(params: {
     const pois = partial.pois ?? []
     const lastPoi = pois[pois.length - 1]
     if (lastPoi?.name) {
-      throttledProgress(partial, `发现 ${lastPoi.name}`)
+      throttledProgress(partial, lastPoi.name)
     } else if (partial.styleTheme) {
-      throttledProgress(partial, `主题：${partial.styleTheme}`)
+      throttledProgress(partial, partial.styleTheme)
     }
   }
 
@@ -128,9 +128,9 @@ export async function runRoutePlanAgent(params: {
     const days_ = partial.days ?? []
     const lastDay = days_[days_.length - 1]
     if (lastDay?.title) {
-      throttledProgress(partial, `规划${lastDay.title}`)
+      throttledProgress(partial, lastDay.title)
     } else if (days_.length > 0) {
-      throttledProgress(partial, `规划第 ${days_.length} 天行程...`)
+      throttledProgress(partial, `第 ${days_.length} 天`)
     }
   }
 
@@ -161,7 +161,7 @@ export async function runContentAgent(params: {
     if (!throttledProgress) continue
     const tips = partial.packingTips ?? []
     if (tips.length > 0) {
-      throttledProgress(partial, `整理装备：${tips[tips.length - 1]}`)
+      throttledProgress(partial, tips[tips.length - 1])
     }
   }
 
@@ -193,7 +193,7 @@ export async function runXhsAgent(params: {
     const notes = partial.notes ?? []
     const lastNote = notes[notes.length - 1]
     if (lastNote?.title) {
-      throttledProgress(partial, `发现：${lastNote.title}`)
+      throttledProgress(partial, lastNote.title)
     }
   }
 
