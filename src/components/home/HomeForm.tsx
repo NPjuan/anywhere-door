@@ -288,7 +288,7 @@ export const HomeForm = memo(
                 <textarea
                   value={params.prompt}
                   onChange={(e) => handlePromptChange(e.target.value)}
-                  placeholder="描述你理想的旅行风格，AI 会根据你的需求规划..."
+                  placeholder="细节描述越多，任意门开的越准，向任意门许愿吧！"
                   rows={2}
                   className="w-full p-3 border focus:outline-none"
                   style={{
