@@ -17,6 +17,14 @@ const PIANO_NOTE_NAMES = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5'
 let _samplerReady: Promise<{ sampler: import('tone').Sampler; Tone: typeof import('tone') }> | null = null
 let _midiReady: Promise<import('@tonejs/midi').Midi> | null = null
 
+// 就绪回调列表，供外部订阅
+let _doraemonReady = false
+const _readyCallbacks: Array<() => void> = []
+export function onDoraemonReady(cb: () => void) {
+  if (_doraemonReady) { cb(); return }
+  _readyCallbacks.push(cb)
+}
+
 function preload() {
   if (!_samplerReady) {
     _samplerReady = (async () => {
@@ -47,6 +55,14 @@ function preload() {
       return new Midi(buf)
     })()
   }
+  // 两者都就绪后通知订阅者
+  Promise.all([_samplerReady, _midiReady]).then(() => {
+    if (!_doraemonReady) {
+      _doraemonReady = true
+      _readyCallbacks.forEach(cb => cb())
+      _readyCallbacks.length = 0
+    }
+  }).catch(() => {})
 }
 
 interface FloatingNote { id: number; x: number; symbol: string; color: string }

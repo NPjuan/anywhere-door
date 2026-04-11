@@ -34,6 +34,15 @@ const PoweredByName = dynamic(
   () => import('@/components/home/PoweredByName').then(m => ({ default: m.PoweredByName })),
   { ssr: false }
 );
+// 懒加载 onDoraemonReady，避免 SSR 时执行
+let _onDoraemonReady: ((cb: () => void) => void) | null = null
+async function getOnDoraemonReady() {
+  if (!_onDoraemonReady) {
+    const m = await import('@/components/home/PoweredByName')
+    _onDoraemonReady = m.onDoraemonReady
+  }
+  return _onDoraemonReady
+}
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
@@ -58,6 +67,13 @@ function RainbowChar({ char, offset }: { char: string; offset: number }) {
 
 function FooterPowered() {
   const [mode, setMode] = useState<FooterMode>('piano')
+  const [doraemonReady, setDoraemonReady] = useState(false)
+
+  useEffect(() => {
+    getOnDoraemonReady().then(fn => {
+      fn(() => setDoraemonReady(true))
+    })
+  }, [])
 
   const handlePowered = () => {
     setMode(m => m === 'piano' ? 'doraemon' : 'piano')
@@ -80,7 +96,7 @@ function FooterPowered() {
       >
         {mode === 'doraemon'
           ? poweredChars.map((ch, i) => <RainbowChar key={i} char={ch} offset={i} />)
-          : <PoweredFlash />
+          : doraemonReady ? <PoweredFlash /> : <span>Powered</span>
         }
       </span>
       {' by '}
