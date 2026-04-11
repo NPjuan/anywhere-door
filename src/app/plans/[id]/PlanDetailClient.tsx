@@ -180,6 +180,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
 
           {/* 时间线 + 地图 */}
           <motion.div
+            id="itinerary-day-row"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-10"
