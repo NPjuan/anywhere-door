@@ -171,6 +171,16 @@ export function useHomeFlow() {
     reset: resetAgents,
   } = useAgentStore();
   const synthStreamActiveRef = useRef(false);
+
+  // 从详情页返回时：itineraryStore 已有数据但 step 是 form，直接恢复到 done
+  useEffect(() => {
+    const existing = useItineraryStore.getState().itinerary;
+    if (existing) {
+      resetAgents();  // 清掉残留的 streamText / streamChunk
+      dispatch({ type: 'PLANNING_DONE' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const {
     setItinerary,
     clear: clearItinerary,
