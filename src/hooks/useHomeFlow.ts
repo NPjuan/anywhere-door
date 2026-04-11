@@ -175,12 +175,37 @@ export function useHomeFlow() {
   const synthStreamActiveRef = useRef(false);
 
   // 从详情页返回时：itineraryStore 已有数据但 step 是 form，直接恢复到 done
+  // 注意：不能干扰正在进行的规划（mount DB effect 会处理 pending 状态）
   useEffect(() => {
     const existing = useItineraryStore.getState().itinerary;
-    if (existing) {
-      resetAgents();  // 清掉残留的 streamText / streamChunk
+    if (!existing) return;
+
+    // 检查 DB 是否有 pending plan，有的话让 mount DB effect 来接管，不要在这里 dispatch done
+    const deviceId = getDeviceId();
+    if (!deviceId) {
+      resetAgents();
       dispatch({ type: 'PLANNING_DONE' });
+      return;
     }
+
+    fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=1&limit=1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const latest = data?.plans?.[0];
+        if (latest?.status === 'pending') {
+          // 有进行中的规划，清掉旧 itinerary，让 mount effect 接管
+          clearItinerary();
+          return;
+        }
+        // 没有 pending，正常恢复 done 状态
+        resetAgents();
+        dispatch({ type: 'PLANNING_DONE' });
+      })
+      .catch(() => {
+        // 网络失败时保守处理：直接恢复 done
+        resetAgents();
+        dispatch({ type: 'PLANNING_DONE' });
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const {
@@ -781,13 +806,18 @@ export function useHomeFlow() {
             startPollingForPlan(latest.id)
           }
         } else if (!pp) {
-          // 无 planning_params 且 pending → 标记 error
+          // 无 planning_params：
+          // - pending → 可能刚创建还没写入，或 agents 太早启动导致丢失
+          //   直接轮询，不标 error，让 orchestrate-bg 自己跑完
+          // - 其他状态 → 无需处理
           if (latest.status === 'pending') {
-            fetch(`/api/plans/${latest.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'error' }),
-            }).catch((e) => console.warn('[useHomeFlow] Failed to mark plan as error:', e));
+            activePlanId = latest.id
+            dispatch({ type: 'START_PLANNING' })
+            const agentIds: AgentId[] = ['poi', 'route', 'tips', 'xhs']
+            agentIds.forEach((id) =>
+              updateAgent(id, { status: 'running', progress: 0, message: 'AI 处理中...' })
+            )
+            startPollingForPlan(latest.id)
           }
         }
         // done / interrupted / error → 只恢复表单，不进入规划流程
@@ -910,9 +940,13 @@ export function useHomeFlow() {
           if (res.ok) {
             const { id } = await res.json();
             planId = id;
+          } else {
+            throw new Error(`创建计划失败 (${res.status})`)
           }
-        } catch {
-          /* 静默失败 */
+        } catch (e) {
+          console.error('[startPlanning] Failed to create plan in DB:', e)
+          dispatch({ type: 'SET_ERROR', error: '创建规划记录失败，请检查网络后重试' });
+          return;
         }
       }
 
