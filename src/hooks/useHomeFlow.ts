@@ -796,13 +796,39 @@ export function useHomeFlow() {
             }).catch((e) => console.warn('[useHomeFlow] Failed to restart orchestrate-bg:', e))
           }
 
-          // synthesis 已在运行（刷新页面时 stream 断开）→ 直接重连流式输出
-          if ((synthStatus === 'running' || synthStatus === 'waiting') && !synthStreamActiveRef.current) {
-            synthStreamActiveRef.current = true
-            updateAgent('synthesis', { status: 'running', progress: 0, message: '整合行程中...', streamChunk: '' })
-            void runSynthesisStream(latest.id)
+          // synthesis 状态处理：
+          // - waiting/running：stream 的 input 可能还未写入或已被清理，统一用快速轮询
+          //   waiting → synthStreamActiveRef 保持 false，轮询检测到 waiting 会自动触发 stream
+          //   running → input 已被消费，轮询等 done 即可
+          if (synthStatus === 'waiting' || synthStatus === 'running') {
+            if (synthStatus === 'running') {
+              synthStreamActiveRef.current = true  // 防止轮询再次触发 stream（input 已不在）
+            }
+            updateAgent('synthesis', { status: 'running', progress: 10, message: '整合行程中，请稍候...' })
+            const fastPoll = setInterval(async () => {
+              try {
+                const detail = await fetch(`/api/plans/${latest.id}`, {
+                  headers: { 'x-device-id': getDeviceId() },
+                }).then(r => r.ok ? r.json() : null)
+                if (!detail?.plan) return
+                synthProgressRef.current = Math.min(synthProgressRef.current + 3, 90)
+                updateAgent('synthesis', { status: 'running', progress: synthProgressRef.current, message: '整合行程中，请稍候...' })
+                if (detail.plan.status === 'done' && detail.plan.itinerary) {
+                  clearInterval(fastPoll)
+                  setItinerary(JSON.stringify(detail.plan.itinerary))
+                  setPlanId(latest.id)
+                  updateAgent('synthesis', { status: 'done', progress: 100, message: '✓ 行程生成完成', streamChunk: '' })
+                  setComplete(`plan-${latest.id}`)
+                  dispatch({ type: 'PLANNING_DONE' })
+                } else if (detail.plan.status === 'error') {
+                  clearInterval(fastPoll)
+                  dispatch({ type: 'SET_ERROR', error: '行程生成失败，请重试' })
+                }
+              } catch { /* 静默，下次继续 */ }
+            }, 1500)
+            setTimeout(() => clearInterval(fastPoll), 3 * 60 * 1000)
           } else {
-            // 其他情况：轮询等待 synthesis waiting 信号
+            // 其他情况：标准轮询等待 synthesis waiting 信号
             startPollingForPlan(latest.id)
           }
         } else if (!pp) {
