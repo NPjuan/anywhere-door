@@ -679,11 +679,9 @@ export function useHomeFlow() {
 
         // ── pending：继续规划 ──
         if (latest.status === 'pending' && pp) {
-          // 恢复 finalPrompt 到 state，让 PromptPreviewCard 有内容显示
+          // 恢复 finalPrompt 仅用于重启 orchestrate-bg 时的参数，不写入 state
+          // 避免 PromptPreviewCard 将含 JSON 的 enrichedPrompt 原样显示
           const savedFinalPrompt = (pp.finalPrompt as string) || ''
-          if (savedFinalPrompt) {
-            dispatch({ type: 'SET_FINAL_PROMPT', prompt: savedFinalPrompt })
-          }
           const progress = detail?.plan?.agent_progress as Record<
             string,
             { status: string; preview: string }
