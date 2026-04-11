@@ -29,7 +29,11 @@ import {
 import { HomeForm } from '@/components/home/HomeForm';
 import { HeroSection } from '@/components/home/HeroSection';
 import { PromptPreviewCard } from '@/components/home/PromptPreviewCard';
-import { PoweredByName } from '@/components/home/PoweredByName';
+import dynamic from 'next/dynamic';
+const PoweredByName = dynamic(
+  () => import('@/components/home/PoweredByName').then(m => ({ default: m.PoweredByName })),
+  { ssr: false }
+);
 import { DeviceIdBadge } from '@/components/home/DeviceIdBadge';
 import { FeedbackButton } from '@/components/ui/FeedbackButton';
 import { SponsorButton } from '@/components/ui/SponsorButton';
