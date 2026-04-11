@@ -110,11 +110,28 @@ export async function POST(req: NextRequest) {
     itinerary:       itinerary ?? null,
     planning_params: planningParams ?? null,
     saved_at:        new Date().toISOString(),
+    current_version: 1,
   })
 
   if (error) {
     console.error('[POST /api/plans]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Phase 2: Create initial version if itinerary is provided
+  if (itinerary && planStatus === 'done') {
+    const { error: versionError } = await supabase.from('plan_versions').insert({
+      plan_id: id,
+      version_number: 1,
+      itinerary,
+      change_type: 'initial',
+      change_description: '初始版本',
+    })
+
+    if (versionError) {
+      console.error('[POST /api/plans] create initial version', versionError)
+      // 不中断主流程，版本创建失败仅记录日志
+    }
   }
 
   return NextResponse.json({ id }, { status: 201 })

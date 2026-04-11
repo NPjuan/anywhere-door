@@ -105,3 +105,25 @@ create table if not exists feedbacks (
 );
 
 create index if not exists feedbacks_created_at_idx on feedbacks (created_at desc);
+
+
+-- ── 8. 版本管理表（Phase 2: Version Management）────────────
+
+-- 添加版本字段到 plans 表
+alter table plans add column if not exists current_version int default 1;
+
+-- 版本历史表
+create table if not exists plan_versions (
+  id              bigserial    primary key,
+  plan_id         text         not null references plans(id) on delete cascade,
+  version_number  int          not null,
+  itinerary       jsonb        not null,
+  change_type     text         not null,  -- 'initial' | 'refine' | 'manual_edit'
+  change_description text,
+  user_feedback   text,
+  created_at      timestamptz  not null default now(),
+  unique(plan_id, version_number)
+);
+
+create index if not exists plan_versions_plan_id_idx on plan_versions(plan_id);
+create index if not exists plan_versions_created_at_idx on plan_versions(created_at desc);

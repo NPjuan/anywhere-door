@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -12,6 +12,7 @@ import { DayTimeline } from '@/components/itinerary/DayTimeline'
 import { RouteMap } from '@/components/itinerary/RouteMap'
 import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote'
 import { ExportButton } from '@/components/itinerary/ExportButton'
+import { VersionHistory } from '@/components/itinerary/VersionHistory'
 import { getDeviceId } from '@/lib/deviceId'
 import type { FullItinerary, XHSNote } from '@/lib/agents/types'
 
@@ -20,7 +21,7 @@ import type { FullItinerary, XHSNote } from '@/lib/agents/types'
    - 接收服务端预取的行程数据
    - 通过 device_id 判断访客 vs 本人
    - 访客：显示「保存到我的计划」
-   - 本人：显示「返回我的计划」
+   - 本人：显示「返回我的计划」+ 版本历史
    ============================================================ */
 
 interface Props {
@@ -36,14 +37,15 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
   const [isOwner,   setIsOwner]   = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [saved,     setSaved]     = useState(false)
+  const [currentIt, setCurrentIt] = useState<FullItinerary>(it)
 
   useEffect(() => {
     setIsOwner(getDeviceId() === ownerDeviceId)
   }, [ownerDeviceId])
 
   const xhsNotes: XHSNote[] =
-    (it as unknown as { xhsNotes?: XHSNote[] })?.xhsNotes ??
-    (it as unknown as { notes?: XHSNote[] })?.notes ?? []
+    (currentIt as unknown as { xhsNotes?: XHSNote[] })?.xhsNotes ??
+    (currentIt as unknown as { notes?: XHSNote[] })?.notes ?? []
 
   const savedDate = savedAt
     ? new Date(savedAt).toLocaleDateString('zh-CN', {
@@ -61,7 +63,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deviceId,
-          itinerary: it,
+          itinerary: currentIt,
           status: 'done',
         }),
       })
@@ -73,6 +75,27 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
       setSaving(false)
     }
   }
+
+  const handleRevert = useCallback(async (versionNumber: number) => {
+    try {
+      const res = await fetch(`/api/plans/${id}/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versionNumber }),
+      })
+      if (!res.ok) throw new Error('回滚失败')
+      const data = await res.json()
+      // 重新获取最新的行程数据
+      const planRes = await fetch(`/api/plans/${id}`)
+      const planData = await planRes.json()
+      if (planData.plan?.itinerary) {
+        setCurrentIt(planData.plan.itinerary as FullItinerary)
+      }
+    } catch (err) {
+      console.error('Error reverting:', err)
+      throw err
+    }
+  }, [id])
 
   return (
     <main className="relative min-h-screen" style={{ background: '#F8FAFF' }}>
@@ -92,7 +115,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
                 </>
               )}
               <span>/</span>
-              <span style={{ color: '#475569' }}>{it.title}</span>
+              <span style={{ color: '#475569' }}>{currentIt.title}</span>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
@@ -116,17 +139,17 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
                   className="font-bold leading-tight mb-2"
                   style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: '#0F172A' }}
                 >
-                  {it.title}
+                  {currentIt.title}
                 </h1>
-                <p className="text-base mb-3" style={{ color: '#475569' }}>{it.summary}</p>
+                <p className="text-base mb-3" style={{ color: '#475569' }}>{currentIt.summary}</p>
 
                 <div className="flex flex-wrap gap-5">
                   {[
-                    { icon: <MapPin size={13} />,    text: it.destination },
-                    { icon: <Calendar size={13} />,  text: `${it.days?.length ?? 0} 天` },
+                    { icon: <MapPin size={13} />,    text: currentIt.destination },
+                    { icon: <Calendar size={13} />,  text: `${currentIt.days?.length ?? 0} 天` },
                     {
                       icon: <Wallet size={13} />,
-                      text: it.budget ? `预算 ¥${it.budget.low}–${it.budget.high}` : '预算未定',
+                      text: currentIt.budget ? `预算 ¥${currentIt.budget.low}–${currentIt.budget.high}` : '预算未定',
                     },
                   ].map(({ icon, text }, i) => (
                     <span key={i} className="flex items-center gap-1.5 text-sm" style={{ color: '#2563EB' }}>
@@ -142,7 +165,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
 
               {/* 右侧操作区 */}
               <div className="flex flex-col items-end gap-2 shrink-0">
-                <ExportButton itinerary={it} planId={id} />
+                <ExportButton itinerary={currentIt} planId={id} />
 
                 {/* 访客：保存到我的计划 */}
                 {!isOwner && (
@@ -180,12 +203,12 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
             className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-10"
           >
             <div className="lg:col-span-3">
-              <DayTimeline dayPlans={it.days ?? []} activeDay={activeDay} onDayChange={setActiveDay} />
+              <DayTimeline dayPlans={currentIt.days ?? []} activeDay={activeDay} onDayChange={setActiveDay} />
             </div>
             <div className="lg:col-span-2">
               <div className="lg:sticky lg:top-6" style={{ height: 360 }}>
-                {it.days?.[activeDay]
-                  ? <RouteMap dayPlan={it.days[activeDay]} />
+                {currentIt.days?.[activeDay]
+                  ? <RouteMap dayPlan={currentIt.days[activeDay]} />
                   : (
                     <div className="h-full rounded-lg flex items-center justify-center"
                       style={{ background: '#F8FAFF', border: '1px solid #E2E8F0' }}>
@@ -196,6 +219,19 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
               </div>
             </div>
           </motion.div>
+
+          {/* 版本历史（仅所有者可见）*/}
+          {isOwner && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }} className="mb-8"
+            >
+              <VersionHistory
+                planId={id}
+                onRevert={handleRevert}
+              />
+            </motion.div>
+          )}
 
           {/* 攻略参考 */}
           {xhsNotes.length > 0 && (
@@ -215,11 +251,11 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
           )}
 
           {/* 注意事项 */}
-          {(it.warnings?.length ?? 0) > 0 && (
+          {(currentIt.warnings?.length ?? 0) > 0 && (
             <div className="rounded-lg p-5 mb-5" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
               <h3 className="text-sm font-semibold mb-3" style={{ color: '#D97706' }}>注意事项</h3>
               <ul className="space-y-1.5">
-                {it.warnings.map((w, i) => (
+                {currentIt.warnings.map((w, i) => (
                   <li key={i} className="text-xs flex gap-2" style={{ color: '#78350F' }}>
                     <span style={{ color: '#D97706' }}>·</span>{w}
                   </li>
@@ -229,11 +265,11 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId }: Props) {
           )}
 
           {/* 打包清单 */}
-          {(it.packingTips?.length ?? 0) > 0 && (
+          {(currentIt.packingTips?.length ?? 0) > 0 && (
             <div className="rounded-lg p-5" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
               <h3 className="text-sm font-semibold mb-3" style={{ color: '#0284C7' }}>打包清单</h3>
               <ul className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {it.packingTips.map((tip, i) => (
+                {currentIt.packingTips.map((tip, i) => (
                   <li key={i} className="text-xs flex gap-1.5 items-start" style={{ color: '#0C4A6E' }}>
                     <span style={{ color: '#0EA5E9' }}>✓</span>{tip}
                   </li>
