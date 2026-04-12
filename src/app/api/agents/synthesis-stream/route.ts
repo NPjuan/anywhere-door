@@ -167,12 +167,14 @@ export async function POST(req: NextRequest) {
   // 创建 SSE 流，同时把 chunk 累积起来写回 DB
   const encoder = new TextEncoder()
   let accumulated = ''
+  const synthT0 = Date.now()
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
         const cfg = getModelConfig(savedModel)
         const isGLM = savedModel?.startsWith('glm') ?? false
+        console.log(JSON.stringify({ event: 'synthesis-start', planId, model: savedModel ?? 'deepseek', isGLM }))
         const fullSystem = isGLM
           ? patchSystemForGLM(SYNTHESIS_SYSTEM_PROMPT, FullItinerarySchema)
           : SYNTHESIS_SYSTEM_PROMPT
@@ -201,13 +203,17 @@ ${agentDataSection}${poiCoordsSection}
           controller.enqueue(encoder.encode(chunk))
         }
 
+        console.log(JSON.stringify({ event: 'synthesis-stream-done', planId, chars: accumulated.length, ms: Date.now() - synthT0 }))
+
         // 流结束，解析 JSON 并写 DB
         let parsed = parseJSON<Record<string, unknown>>(accumulated)
 
         if (!parsed) {
-          console.error('[synthesis-stream] JSON parse failed, length:', accumulated.length)
+          console.error(JSON.stringify({ event: 'synthesis-parse-failed', planId, chars: accumulated.length, preview: accumulated.slice(0, 200) }))
           throw new Error('JSON parse failed')
         }
+
+        console.log(JSON.stringify({ event: 'synthesis-parse-ok', planId, title: parsed.title, days: Array.isArray(parsed.days) ? parsed.days.length : 0 }))
 
         // 规范化 budget 字段
         const rawBudget = parsed.budget as Record<string, unknown> | null | undefined
@@ -261,9 +267,11 @@ ${agentDataSection}${poiCoordsSection}
           agent_progress:  doneProg,
           // planning_params 保留不清空，供调试查看完整 enriched prompt
         }).eq('id', planId)
+        console.log(JSON.stringify({ event: 'synthesis-saved', planId, ms: Date.now() - synthT0 }))
 
       } catch (err) {
-        console.error('[synthesis-stream] error:', err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        console.error(JSON.stringify({ event: 'synthesis-error', planId, error: errMsg, ms: Date.now() - synthT0 }))
         const errProg = { ...updatedProgress, synthesis: { status: 'error', preview: String(err) } }
         await supabase.from('plans').update({
           status:          'error',

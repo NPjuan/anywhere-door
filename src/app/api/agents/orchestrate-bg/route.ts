@@ -42,6 +42,9 @@ async function runPlanningInBackground(
     ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
     : 3
 
+  const t0 = Date.now()
+  console.log(JSON.stringify({ event: 'orchestrate-start', planId, model: model ?? 'deepseek', destCity, days }))
+
   const results: Record<string, unknown> = {}
   const progress: Record<string, { status: string; preview: string; input?: unknown }> = {
     poi:       { status: 'running', preview: '' },
@@ -169,6 +172,7 @@ async function runPlanningInBackground(
 
   /* ── 阶段三：route 完成，触发 synthesis（不等 tips/xhs）── */
   await triggerSynthesis()
+  console.log(JSON.stringify({ event: 'orchestrate-done', planId, ms: Date.now() - t0 }))
 }
 
 export async function POST(req: NextRequest) {

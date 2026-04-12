@@ -127,6 +127,9 @@ export async function unifiedStreamObject<T>(params: {
       maxOutputTokens: cfg.maxOutputTokens,
     })
 
+    const t0 = Date.now()
+    console.log(JSON.stringify({ path: 'glm-fallback', event: 'start', provider: resolveProvider(modelOverride) }))
+
     async function* makeStream(): AsyncIterable<DeepPartial<T>> {
       let buf = ''
       for await (const chunk of textStream) {
@@ -138,9 +141,17 @@ export async function unifiedStreamObject<T>(params: {
       }
       try {
         const fullText = await textPromise
+        const ms = Date.now() - t0
         const cleaned  = fullText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-        resolveObj(schema.parse(JSON.parse(cleaned)))
-      } catch (e) { rejectObj(e) }
+        const result = schema.parse(JSON.parse(cleaned))
+        console.log(JSON.stringify({ path: 'glm-fallback', event: 'done', ms, chars: fullText.length }))
+        resolveObj(result)
+      } catch (e) {
+        const ms = Date.now() - t0
+        const errMsg = e instanceof Error ? e.message : String(e)
+        console.error(JSON.stringify({ path: 'glm-fallback', event: 'error', ms, error: errMsg }))
+        rejectObj(e)
+      }
     }
 
     return { object: objectPromise, partialObjectStream: makeStream() }
