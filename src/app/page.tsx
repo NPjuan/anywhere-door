@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Spin } from 'antd';
+import { Spin, message } from 'antd';
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground';
 import { AgentStatusPanel } from '@/components/agents/AgentStatusPanel';
 import { DayTimeline } from '@/components/itinerary/DayTimeline';
@@ -61,11 +61,12 @@ export default function HomePage() {
   } = useHomeFlow();
 
   const { params, isValid } = useSearchStore();
-  const { itinerary, activeDay, setActiveDay, planId } = useItineraryStore();
+  const { itinerary, activeDay, setActiveDay, planId, setItinerary } = useItineraryStore();
   const [planCount, setPlanCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [weatherMap, setWeatherMap] = useState<Map<string, DayWeather>>(new Map());
   const [activePOIId, setActivePOIId] = useState<string | undefined>(undefined);
+  const [replanningDay, setReplanningDay] = useState<number | null>(null);
 
   // 行程完成后获取天气
   useEffect(() => {
@@ -134,6 +135,30 @@ export default function HomePage() {
       );
     }
   }, [step]);
+
+  /* 单日重新规划（首页） */
+  const handleReplanDay = async (dayIndex: number, feedback?: string) => {
+    if (replanningDay !== null || !planId || !itinerary) return
+    setReplanningDay(dayIndex)
+    try {
+      const res = await fetch(`/api/plans/${planId}/replan-day`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dayIndex, deviceId: getDeviceId(), feedback }),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      // 局部更新 itineraryStore
+      const newDays = (itinerary.days ?? []).map((d, i) => i === dayIndex ? data.day : d)
+      setItinerary(JSON.stringify({ ...itinerary, days: newDays }))
+      setActivePOIId(undefined)
+      message.success('重新规划成功')
+    } catch {
+      message.error('规划失败，请重试')
+    } finally {
+      setReplanningDay(null)
+    }
+  }
 
   const isSubmittingRef = useRef(false);
   const handleSubmit = (e: React.FormEvent) => {
@@ -732,6 +757,8 @@ export default function HomePage() {
                         weatherMap={weatherMap}
                         activePOIId={activePOIId}
                         onMapPin={(poiId) => setActivePOIId(poiId)}
+                        onReplanDay={planId ? handleReplanDay : undefined}
+                        replanningDay={replanningDay}
                         onActivityClick={(activity) => {
                           const dayIndex = (itinerary.days ?? []).findIndex(
                             (d) =>
