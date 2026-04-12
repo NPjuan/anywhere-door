@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Timeline, ConfigProvider } from 'antd';
-import { Clock, MapPin, DollarSign, Navigation, AlertTriangle } from 'lucide-react';
+import { Clock, MapPin, DollarSign, Navigation, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, DayPlan } from '@/lib/agents/types';
 import type { DayWeather } from '@/lib/weather';
@@ -44,11 +44,13 @@ interface DayTimelineProps {
   refineMode?:       boolean;
   onActivityClick?:  (activity: Activity) => void;
   weatherMap?:       Map<string, DayWeather>
-  activePOIId?:      string                        // 地图 → Timeline：高亮该 POI 对应活动
-  onMapPin?:         (poiId: string) => void       // Timeline → 地图：点击定位按钮
+  activePOIId?:      string
+  onMapPin?:         (poiId: string) => void
+  onReplanDay?:      (dayIndex: number) => void   // 单日重新规划回调
+  replanningDay?:    number | null               // 正在规划中的天索引
 }
 
-export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin }: DayTimelineProps) {
+export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin, onReplanDay, replanningDay }: DayTimelineProps) {
   if (!dayPlans || !Array.isArray(dayPlans) || dayPlans.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-sm" style={{ color: '#94A3B8' }}>
@@ -157,13 +159,35 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
           className="flex flex-col gap-4"
         >
           {/* 当天标题 */}
-          <div style={{ borderLeft: '3px solid #2563EB', paddingLeft: 12 }}>
-            <p className="text-xs" style={{ color: '#94A3B8' }}>
-              第 {safeActiveDay + 1} 天{/^\d{4}-\d{2}-\d{2}$/.test(plan.date ?? '') ? ` · ${plan.date}` : ''}
-            </p>
-            <h3 className="text-base font-semibold mt-0.5" style={{ color: '#0F172A' }}>
-              {plan.title}
-            </h3>
+          <div className="flex items-start justify-between gap-2" style={{ borderLeft: '3px solid #2563EB', paddingLeft: 12 }}>
+            <div>
+              <p className="text-xs" style={{ color: '#94A3B8' }}>
+                第 {safeActiveDay + 1} 天{/^\d{4}-\d{2}-\d{2}$/.test(plan.date ?? '') ? ` · ${plan.date}` : ''}
+              </p>
+              <h3 className="text-base font-semibold mt-0.5" style={{ color: '#0F172A' }}>
+                {plan.title}
+              </h3>
+            </div>
+            {onReplanDay && (
+              <button
+                onClick={() => onReplanDay(safeActiveDay)}
+                disabled={replanningDay !== null && replanningDay !== undefined}
+                className="shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 cursor-pointer transition-all"
+                style={{
+                  background:   '#FFFFFF',
+                  border:       '1px solid #E2E8F0',
+                  borderRadius: 8,
+                  color:        replanningDay === safeActiveDay ? '#2563EB' : '#64748B',
+                  opacity:      (replanningDay !== null && replanningDay !== undefined && replanningDay !== safeActiveDay) ? 0.4 : 1,
+                }}
+              >
+                {replanningDay === safeActiveDay
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <RefreshCw size={11} />
+                }
+                {replanningDay === safeActiveDay ? '规划中...' : '重新规划'}
+              </button>
+            )}
           </div>
 
           {/* antd Timeline */}

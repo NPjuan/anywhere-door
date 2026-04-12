@@ -15,6 +15,7 @@ import { getDeviceId } from '@/lib/deviceId'
    ============================================================ */
 
 const PAGE_SIZE = 12
+const STYLE_TAGS = ['亲子', '蜜月', '背包客', '文化探索', '美食之旅', '自然风光', '都市潮流', '休闲度假']
 
 interface PoiPoint  { name: string; lat: number; lng: number }
 interface DayPreview { day: number; date: string; title: string; pois: PoiPoint[] }
@@ -34,6 +35,7 @@ interface ExplorePlan {
   is_favorited:    boolean
   highlights:      string[]
   days_preview:    DayPreview[]
+  style_tags:      string[]
 }
 
 export default function ExplorePage() {
@@ -46,17 +48,19 @@ export default function ExplorePage() {
   const [total,      setTotal]      = useState(0)
   const [searchInput, setSearchInput] = useState('')
   const [sort,       setSort]       = useState<'latest' | 'popular'>('latest')
+  const [styleFilter, setStyleFilter] = useState<string>('')
   const [favStates,  setFavStates]  = useState<Record<string, boolean>>({})
   const [favLoading, setFavLoading] = useState<Record<string, boolean>>({})
   // 每张卡片当前选中的 days_preview 索引
   const [mapDayIdx,  setMapDayIdx]  = useState<Record<string, number>>({})
-  const searchRef   = useRef('')
-  const sortRef     = useRef<'latest' | 'popular'>('latest')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sentinelRef = useRef<HTMLDivElement>(null) // 无限滚动哨兵元素
+  const searchRef      = useRef('')
+  const sortRef        = useRef<'latest' | 'popular'>('latest')
+  const styleFilterRef = useRef('')
+  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sentinelRef    = useRef<HTMLDivElement>(null) // 无限滚动哨兵元素
 
   // 首屏加载（替换）
-  const fetchPlans = useCallback(async (q = searchRef.current, s = sortRef.current) => {
+  const fetchPlans = useCallback(async (q = searchRef.current, s = sortRef.current, st = styleFilterRef.current) => {
     setLoading(true)
     setError(null)
     setPage(1)
@@ -65,6 +69,7 @@ export default function ExplorePage() {
       const params = new URLSearchParams({ page: '1', limit: String(PAGE_SIZE), sort: s })
       if (deviceId) params.set('deviceId', deviceId)
       if (q) params.set('search', q)
+      if (st) params.set('style', st)
       const res = await fetch(`/api/explore?${params}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -91,6 +96,7 @@ export default function ExplorePage() {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sort: sortRef.current })
       if (deviceId) params.set('deviceId', deviceId)
       if (searchRef.current) params.set('search', searchRef.current)
+      if (styleFilterRef.current) params.set('style', styleFilterRef.current)
       const res = await fetch(`/api/explore?${params}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -141,7 +147,14 @@ export default function ExplorePage() {
   const handleSortChange = (s: 'latest' | 'popular') => {
     sortRef.current = s
     setSort(s)
-    fetchPlans(searchRef.current, s)
+    fetchPlans(searchRef.current, s, styleFilterRef.current)
+  }
+
+  const handleStyleFilter = (tag: string) => {
+    const next = styleFilterRef.current === tag ? '' : tag
+    styleFilterRef.current = next
+    setStyleFilter(next)
+    fetchPlans(searchRef.current, sortRef.current, next)
   }
 
   const handleFavorite = async (planId: string) => {
@@ -222,7 +235,7 @@ export default function ExplorePage() {
         </div>
 
         {/* 排序切换 */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-3">
           {([['latest', '最新发布'], ['popular', '最多收藏']] as ['latest' | 'popular', string][]).map(([key, label]) => (
             <button key={key} onClick={() => handleSortChange(key)}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 cursor-pointer transition-all"
@@ -234,6 +247,22 @@ export default function ExplorePage() {
               }}>
               {key === 'popular' && <Heart size={11} style={{ fill: sort === key ? 'currentColor' : 'none' }} />}
               {label}
+            </button>
+          ))}
+        </div>
+
+        {/* 风格标签筛选 */}
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {STYLE_TAGS.map(tag => (
+            <button key={tag} onClick={() => handleStyleFilter(tag)}
+              className="shrink-0 text-xs px-3 py-1.5 cursor-pointer transition-all"
+              style={{
+                background:   styleFilter === tag ? '#2563EB' : '#FFFFFF',
+                color:        styleFilter === tag ? '#FFFFFF' : '#64748B',
+                border:       `1px solid ${styleFilter === tag ? '#2563EB' : '#E5E7EB'}`,
+                borderRadius: 8, fontWeight: styleFilter === tag ? 600 : 400, whiteSpace: 'nowrap',
+              }}>
+              {tag}
             </button>
           ))}
         </div>
@@ -321,6 +350,12 @@ export default function ExplorePage() {
                             <span className="flex items-center gap-1 text-xs px-2 py-0.5"
                               style={{ background: '#F1F5F9', color: '#64748B', borderRadius: 6 }}>
                               <Calendar size={10} />{plan.days_count} 天
+                            </span>
+                          )}
+                          {plan.style_tags?.[0] && (
+                            <span className="text-xs px-2 py-0.5"
+                              style={{ background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0', borderRadius: 6 }}>
+                              {plan.style_tags[0]}
                             </span>
                           )}
                         </div>

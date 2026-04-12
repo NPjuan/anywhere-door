@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { MapPin, Locate } from 'lucide-react'
 
 /* ============================================================
    MiniMap — 探索卡片用的轻量地图
@@ -103,6 +103,19 @@ export function MiniMap({ pois, height = 160 }: MiniMapProps) {
   /* 判断目标区域：多数 POI 在中国才用高德 */
   const chinaCount = pois.filter(p => isInChinaRegion(p.lat, p.lng)).length
   const isChina    = pois.length === 0 || chinaCount > pois.length / 2
+
+  /* 居中/全览 */
+  const handleFitView = useCallback(() => {
+    if (isChina && amapRef.current && amapMkRef.current.length > 0) {
+      amapRef.current.setFitView(amapMkRef.current)
+    } else if (!isChina && lfMapRef.current && lfMkRef.current.length > 0) {
+      import('leaflet').then(({ default: L }) => {
+        if (!lfMapRef.current) return
+        const grp = L.featureGroup(lfMkRef.current)
+        lfMapRef.current.fitBounds(grp.getBounds(), { padding: [30, 30] })
+      })
+    }
+  }, [isChina])
 
   // 注入一次全局 CSS
   useEffect(() => {
@@ -287,6 +300,23 @@ export function MiniMap({ pois, height = 160 }: MiniMapProps) {
         </div>
       )}
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {/* 居中按钮 */}
+      {isLoaded && (
+        <button
+          onClick={handleFitView}
+          title="回到全览"
+          className="absolute bottom-2 right-2 z-[1000] w-7 h-7 flex items-center justify-center cursor-pointer"
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderRadius: 6,
+            color: DAY_COLOR,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+          }}
+        >
+          <Locate size={12} />
+        </button>
+      )}
     </div>
   )
 }

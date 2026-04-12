@@ -43,6 +43,8 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
   const [saved,       setSaved]       = useState(false)
   const [activePOIId, setActivePOIId] = useState<string | undefined>(undefined)
   const [weatherMap,  setWeatherMap]  = useState<Map<string, DayWeather>>(new Map())
+  const [itDays,      setItDays]      = useState(it.days ?? [])
+  const [replanningDay, setReplanningDay] = useState<number | null>(null)
 
   // 公开/私密
   const [isPublic,      setIsPublic]      = useState(initIsPublic)
@@ -121,6 +123,25 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
       /* 静默 */
     } finally {
       setTogglingPublic(false)
+    }
+  }
+
+  /* 单日重新规划（仅本人） */
+  const handleReplanDay = async (dayIndex: number) => {
+    if (replanningDay !== null || !isOwner) return
+    setReplanningDay(dayIndex)
+    try {
+      const res = await fetch(`/api/plans/${id}/replan-day`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ dayIndex, deviceId: getDeviceId() }),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setItDays(prev => prev.map((d, i) => i === dayIndex ? data.day : d))
+      setActivePOIId(undefined)
+    } catch { /* 静默 */ } finally {
+      setReplanningDay(null)
     }
   }
 
@@ -336,20 +357,22 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
             <div className="lg:col-span-3">
               <div className="p-4" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
                 <DayTimeline
-                  dayPlans={it.days ?? []}
+                  dayPlans={itDays}
                   activeDay={activeDay}
                   onDayChange={(d) => { setActiveDay(d); setActivePOIId(undefined) }}
                   weatherMap={weatherMap}
                   activePOIId={activePOIId}
                   onMapPin={(poiId) => setActivePOIId(poiId)}
+                  onReplanDay={isOwner ? handleReplanDay : undefined}
+                  replanningDay={replanningDay}
                 />
               </div>
             </div>
             <div className="lg:col-span-2">
               <div className="lg:sticky lg:top-6" style={{ height: 360 }}>
-                {it.days?.[activeDay]
+                {itDays?.[activeDay]
                   ? <RouteMap
-                      dayPlan={it.days[activeDay]}
+                      dayPlan={itDays[activeDay]}
                       activePOIId={activePOIId}
                       onMarkerClick={(poiId) => setActivePOIId(poiId)}
                     />
