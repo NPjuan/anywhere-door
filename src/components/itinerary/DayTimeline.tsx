@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import { Timeline, ConfigProvider } from 'antd';
 import { Clock, MapPin, DollarSign, Navigation, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,16 +18,37 @@ const BREATHE_STYLE = `
   }
 `
 
+/** 从 cost 字符串中提取数字，支持 "60元"、"约100-150元"、"¥200" 等格式 */
+function parseCost(cost?: string): { min: number; max: number } | null {
+  if (!cost) return null
+  const nums = [...cost.matchAll(/\d+\.?\d*/g)].map(m => parseFloat(m[0])).filter(n => n > 0 && n < 100000)
+  if (!nums.length) return null
+  return { min: Math.min(...nums), max: Math.max(...nums) }
+}
+
+/** 计算一天所有活动的费用汇总 */
+function calcDayCost(plan: DayPlan): { min: number; max: number } | null {
+  const acts = [...(plan.morning ?? []), ...(plan.afternoon ?? []), ...(plan.evening ?? [])]
+  let totalMin = 0, totalMax = 0, hasAny = false
+  for (const act of acts) {
+    const c = parseCost(act.cost)
+    if (c) { totalMin += c.min; totalMax += c.max; hasAny = true }
+  }
+  return hasAny ? { min: totalMin, max: totalMax } : null
+}
+
 interface DayTimelineProps {
   dayPlans:          DayPlan[];
   activeDay:         number;
   onDayChange:       (day: number) => void;
   refineMode?:       boolean;
   onActivityClick?:  (activity: Activity) => void;
-  weatherMap?:       Map<string, DayWeather>  // 可选，按日期查天气
+  weatherMap?:       Map<string, DayWeather>
+  activePOIId?:      string                        // 地图 → Timeline：高亮该 POI 对应活动
+  onMapPin?:         (poiId: string) => void       // Timeline → 地图：点击定位按钮
 }
 
-export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap }: DayTimelineProps) {
+export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin }: DayTimelineProps) {
   if (!dayPlans || !Array.isArray(dayPlans) || dayPlans.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-sm" style={{ color: '#94A3B8' }}>
@@ -56,20 +78,22 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
       ),
     },
     ...section.activities.map((activity) => ({
-      icon: (
-        <div
-          className="w-2 h-2 rounded-full border-[1.5px] bg-white mt-[3px]"
-          style={{ borderColor: '#2563EB' }}
-        />
-      ),
-      content: (
-        <ActivityCard
-          activity={activity}
-          refineMode={refineMode}
-          onClick={refineMode ? () => onActivityClick?.(activity) : undefined}
-        />
-      ),
-    })),
+        icon: (
+          <div
+            className="w-2 h-2 rounded-full border-[1.5px] bg-white mt-[3px]"
+            style={{ borderColor: '#2563EB' }}
+          />
+        ),
+        content: (
+          <ActivityCard
+            activity={activity}
+            refineMode={refineMode}
+            onClick={refineMode ? () => onActivityClick?.(activity) : undefined}
+            activePOIId={activePOIId}
+            onMapPin={onMapPin}
+          />
+        ),
+      })),
   ])
 
   return (
@@ -94,7 +118,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
                 borderColor:  i === safeActiveDay ? '#2563EB' : '#E2E8F0',
                 color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
                 borderRadius: 8,
-                minWidth:     52,
+                minWidth:     72,
               }}
             >
               <span>Day {i + 1}</span>
@@ -157,6 +181,26 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
           >
             <Timeline items={timelineItems} />
           </ConfigProvider>
+
+          {/* 今日费用小结 */}
+          {(() => {
+            const cost = calcDayCost(plan)
+            if (!cost) return null
+            return (
+              <div
+                className="flex items-center gap-2 mt-1 px-1"
+                style={{ fontSize: 12, color: '#64748B' }}
+              >
+                <DollarSign size={12} style={{ color: '#16A34A' }} />
+                <span>今日预估</span>
+                <span style={{ fontWeight: 600, color: '#0F172A' }}>
+                  {cost.min === cost.max
+                    ? `¥${cost.min}`
+                    : `¥${cost.min}–${cost.max}`}
+                </span>
+              </div>
+            )
+          })()}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -165,23 +209,36 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
 
 /* ── 活动卡片 ── */
 interface ActivityCardProps {
-  activity:   Activity;
+  activity:    Activity;
   refineMode?: boolean;
-  onMapPin?:  (activity: Activity) => void;
-  onClick?:   () => void;
+  onClick?:    () => void;
+  activePOIId?: string
+  onMapPin?:   (poiId: string) => void
 }
 
-export function ActivityCard({ activity, refineMode = false, onMapPin, onClick }: ActivityCardProps) {
-  const isClickable = !!onClick || !!onMapPin;
+export function ActivityCard({ activity, refineMode = false, onClick, activePOIId, onMapPin }: ActivityCardProps) {
+  const isClickable = !!onClick
+  const poiId       = activity.poi?.id ?? activity.poi?.name
+  const isActive    = !!poiId && poiId === activePOIId
+  const cardRef     = useRef<HTMLDivElement>(null)
+
+  // 地图驱动高亮时，滚动到可视区
+  useEffect(() => {
+    if (isActive && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [isActive])
 
   return (
     <motion.div
+      ref={cardRef}
       className={`py-3 px-3.5 -mt-1${refineMode ? ' breathe-card' : ''}`}
       style={{
-        background:   '#FAFBFC',
-        border:       '1px solid #F1F5F9',
+        background:   isActive ? '#EFF6FF' : '#FAFBFC',
+        border:       `1px solid ${isActive ? '#93C5FD' : '#F1F5F9'}`,
         borderRadius: 8,
         cursor:       isClickable ? 'pointer' : undefined,
+        transition:   'background 0.2s, border-color 0.2s',
       }}
       whileHover={refineMode ? { backgroundColor: '#EFF6FF', scale: 1.005 } : {}}
       whileTap={refineMode   ? { scale: 0.99 } : {}}
@@ -189,24 +246,41 @@ export function ActivityCard({ activity, refineMode = false, onMapPin, onClick }
       role={isClickable ? 'button' : undefined}
       onKeyDown={(e) => {
         if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onClick?.();
-          onMapPin?.(activity);
+          e.preventDefault()
+          onClick?.()
         }
       }}
-      onClick={() => { onClick?.(); onMapPin?.(activity); }}
+      onClick={() => onClick?.()}
     >
-      {/* 时间 + 名称 */}
+      {/* 时间 + 名称 + 定位按钮 */}
       <div className="flex items-baseline gap-2.5 mb-1.5">
         <span className="text-xs font-mono tabular-nums" style={{ color: '#2563EB', flexShrink: 0 }}>
           {activity.time}
         </span>
-        <h4 className="text-sm font-semibold leading-snug" style={{ color: '#0F172A' }}>
+        <h4 className="text-sm font-semibold leading-snug flex-1" style={{ color: '#0F172A' }}>
           {activity.name}
         </h4>
-        {refineMode && (
-          <span className="ml-auto text-xs shrink-0" style={{ color: '#94A3B8' }}>@ 引用</span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* 定位按钮：有 POI 坐标才显示 */}
+          {poiId && activity.poi?.latLng && onMapPin && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMapPin(poiId) }}
+              title="在地图上查看"
+              className="flex items-center justify-center w-5 h-5 rounded cursor-pointer transition-colors"
+              style={{
+                background:  isActive ? '#2563EB' : 'transparent',
+                border:      `1px solid ${isActive ? '#2563EB' : '#E2E8F0'}`,
+                color:       isActive ? '#FFFFFF' : '#94A3B8',
+                flexShrink:  0,
+              }}
+            >
+              <MapPin size={10} />
+            </button>
+          )}
+          {refineMode && (
+            <span className="text-xs" style={{ color: '#94A3B8' }}>@ 引用</span>
+          )}
+        </div>
       </div>
 
       {/* 描述 */}
@@ -241,5 +315,5 @@ export function ActivityCard({ activity, refineMode = false, onMapPin, onClick }
         </div>
       )}
     </motion.div>
-  );
+  )
 }

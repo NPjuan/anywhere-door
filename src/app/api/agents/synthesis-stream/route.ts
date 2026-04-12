@@ -9,6 +9,83 @@ import { FullItinerarySchema } from '@/lib/agents/types'
 import { supabase } from '@/lib/supabase'
 import { parseJSON } from '@/lib/utils/jsonParse'
 
+/* ── 行程后置校验与修复 ────────────────────────────────────────
+   JSON parse 成功后，对结构和业务逻辑做兜底修复：
+   1. days 长度与实际天数对齐
+   2. 每天 date 字段连续（startDate + i）
+   3. morning/afternoon/evening 必须是数组
+   4. 跨天重复景点去重（同名活动只保留首次出现）
+──────────────────────────────────────────────────────────────── */
+function validateAndRepairItinerary(
+  data: Record<string, unknown>,
+  startDate: string,
+  expectedDays: number,
+): Record<string, unknown> {
+  if (!Array.isArray(data.days)) {
+    data.days = []
+  }
+
+  const days = data.days as Record<string, unknown>[]
+
+  // 1. 修复每天的 morning/afternoon/evening 必须是数组
+  for (const day of days) {
+    if (!Array.isArray(day.morning))   day.morning   = []
+    if (!Array.isArray(day.afternoon)) day.afternoon = []
+    if (!Array.isArray(day.evening))   day.evening   = []
+  }
+
+  // 2. 修复日期连续性：强制覆盖为 startDate + i 天
+  const start = new Date(startDate)
+  for (let i = 0; i < days.length; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const yyyy = d.getFullYear()
+    const mm   = String(d.getMonth() + 1).padStart(2, '0')
+    const dd   = String(d.getDate()).padStart(2, '0')
+    days[i].date = `${yyyy}-${mm}-${dd}`
+    days[i].day  = i + 1
+  }
+
+  // 3. 天数对齐：超出截断，不足补空天
+  if (days.length > expectedDays) {
+    data.days = days.slice(0, expectedDays)
+  } else {
+    while ((data.days as unknown[]).length < expectedDays) {
+      const idx  = (data.days as unknown[]).length
+      const d    = new Date(start)
+      d.setDate(start.getDate() + idx)
+      const yyyy = d.getFullYear()
+      const mm   = String(d.getMonth() + 1).padStart(2, '0')
+      const dd   = String(d.getDate()).padStart(2, '0')
+      ;(data.days as Record<string, unknown>[]).push({
+        day: idx + 1, date: `${yyyy}-${mm}-${dd}`,
+        title: `第${idx + 1}天`, morning: [], afternoon: [], evening: [],
+      })
+    }
+  }
+
+  // 4. 跨天重复景点去重（按活动 name 去重，保留首次出现）
+  const seenNames = new Set<string>()
+  for (const day of data.days as Record<string, unknown>[]) {
+    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+      const acts = day[slot] as Record<string, unknown>[]
+      day[slot] = acts.filter(act => {
+        const name = (act.name as string | undefined)?.trim()
+        if (!name) return true  // 没有名字的活动保留
+        // 交通/住宿类不去重
+        if (/机场|酒店|入住|前往|返回|出发|到达/.test(name)) return true
+        if (seenNames.has(name)) {
+          return false  // 重复，移除
+        }
+        seenNames.add(name)
+        return true
+      })
+    }
+  }
+
+  return data
+}
+
 export const maxDuration = 300
 
 /* ============================================================
@@ -214,6 +291,10 @@ ${agentDataSection}${poiCoordsSection}
         }
 
         console.log(JSON.stringify({ event: 'synthesis-parse-ok', planId, title: parsed.title, days: Array.isArray(parsed.days) ? parsed.days.length : 0 }))
+
+        // 后置校验：修复 days 长度、日期连续性、重复景点
+        parsed = validateAndRepairItinerary(parsed, startDate, days)
+        console.log(JSON.stringify({ event: 'synthesis-validated', planId, days: (parsed.days as unknown[]).length }))
 
         // 规范化 budget 字段
         const rawBudget = parsed.budget as Record<string, unknown> | null | undefined

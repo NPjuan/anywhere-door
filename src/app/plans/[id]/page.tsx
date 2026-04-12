@@ -93,6 +93,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
       it={plan.itinerary as FullItinerary}
       savedAt={plan.saved_at ?? ''}
       ownerDeviceId={plan.device_id ?? ''}
+      initIsPublic={plan.is_public ?? false}
     />
   )
 }

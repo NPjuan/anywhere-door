@@ -104,9 +104,10 @@ async function runPlanningInBackground(
     })
 
   /* ── 阶段二：route（用 poi 结果）+ tips + xhs 并行 ── */
-  const poiResult = results.poi as { pois?: Array<{ name: string; address: string; category: string }> } | null
+  const poiResult = results.poi as { pois?: Array<{ name: string; address: string; category: string; latLng?: { lat: number; lng: number } }> } | null
   const poisForRoute = poiResult?.pois?.map(p => ({
     name: p.name, address: p.address, category: p.category,
+    ...(p.latLng ? { latLng: p.latLng } : {}),
   })) ?? []
 
   await Promise.allSettled([

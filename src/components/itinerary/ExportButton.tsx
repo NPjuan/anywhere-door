@@ -5,11 +5,14 @@ import { useState, useRef, useEffect } from 'react'
 import type { FullItinerary } from '@/lib/agents/types'
 import { useItineraryStore } from '@/lib/stores/itineraryStore'
 import { downloadDayAsImage, downloadAllDays } from '@/lib/itineraryCanvas'
+import type { ReactNode } from 'react'
 
 interface ExportButtonProps {
   itinerary: FullItinerary
   /** 外部传入时优先使用，解决分享页 store 内 planId 为 null 的问题 */
   planId?: string | null
+  /** 追加在按钮行末尾的额外节点（如公开按钮）*/
+  extra?: ReactNode
 }
 
 const BTN: React.CSSProperties = {
@@ -28,7 +31,7 @@ const BTN: React.CSSProperties = {
   transition:   'background 0.15s',
 }
 
-export function ExportButton({ itinerary, planId: planIdProp }: ExportButtonProps) {
+export function ExportButton({ itinerary, planId: planIdProp, extra }: ExportButtonProps) {
   const [copied,      setCopied]      = useState(false)
   const [linkCopied,  setLinkCopied]  = useState(false)
   const [showDl,      setShowDl]      = useState(false)
@@ -136,6 +139,7 @@ export function ExportButton({ itinerary, planId: planIdProp }: ExportButtonProp
           </div>
         )}
       </div>
+      {extra}
     </div>
   )
 }

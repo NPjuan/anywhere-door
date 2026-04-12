@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase'
      itinerary        jsonb,
      planning_params  jsonb,      -- 用于刷新恢复规划
      agent_progress   jsonb,      -- 各 Agent 实时状态（poi/route/tips/xhs/synthesis）
+     is_public        boolean     not null default false,  -- 是否公开到探索广场
      saved_at         timestamptz not null default now()
    );
 
@@ -30,6 +31,8 @@ import { supabase } from '@/lib/supabase'
    alter table plans add column if not exists status text not null default 'done';
    alter table plans add column if not exists planning_params jsonb;
    alter table plans add column if not exists agent_progress jsonb;
+   alter table plans add column if not exists is_public boolean not null default false;
+   create index on plans (is_public) where is_public = true;
 
    create index on plans (device_id);
    create index on plans (saved_at desc);

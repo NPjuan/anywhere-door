@@ -123,7 +123,7 @@ export async function runRoutePlanAgent(params: {
   destination:  string
   travelStyle:  string
   days:         number
-  pois:         Array<{ name: string; address: string; category: string }>
+  pois:         Array<{ name: string; address: string; category: string; latLng?: { lat: number; lng: number } }>
   startDate:    string
   onProgress?:  ProgressCallback<RouteOutput>
   model?:       AIProvider
@@ -145,7 +145,7 @@ export async function runRoutePlanAgent(params: {
       schema: RoutePlanOutputSchema,
       system: ROUTE_SYSTEM_PROMPT,
       prompt: `目的地：${destination}，旅行风格：${coreStyle || '轻松愉快'}，天数：${days}天，起始日期：${startDate || '未知'}${constraintSection}
-可用POI列表：${JSON.stringify(pois.map(p => ({ name: p.name, address: p.address, category: p.category })))}
+可用POI列表（含坐标，请按地理位置聚类安排同天行程）：${JSON.stringify(pois.map(p => ({ name: p.name, address: p.address, category: p.category, ...(p.latLng ? { lat: p.latLng.lat, lng: p.latLng.lng } : {}) })))}
 请规划 ${days} 天的详细行程，每天3-5个活动，合理安排上午/下午/晚上。
 每天的 date 字段必须填写实际日期（YYYY-MM-DD 格式），第1天为 ${startDate || '未知'}，依次递增。
 活动中不需要填写 poi 字段，只需填写 time、name、description、duration、cost、transport 即可。`,

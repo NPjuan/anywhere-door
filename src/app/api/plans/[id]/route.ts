@@ -34,10 +34,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     itinerary,
     status,
     agentProgress,
+    isPublic,
+    deviceId: reqDeviceId,
   } = body as {
-    itinerary?: Record<string, unknown>
-    status?: string
+    itinerary?:     Record<string, unknown>
+    status?:        string
     agentProgress?: Record<string, unknown>
+    isPublic?:      boolean
+    deviceId?:      string
+  }
+
+  // 切换公开/私密：需要验证 deviceId 是行程所有者
+  if (typeof isPublic === 'boolean') {
+    if (!reqDeviceId) {
+      return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 })
+    }
+    const { data: plan } = await supabase
+      .from('plans')
+      .select('device_id')
+      .eq('id', id)
+      .single()
+    if (!plan || plan.device_id !== reqDeviceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const { error } = await supabase
+      .from('plans')
+      .update({ is_public: isPublic })
+      .eq('id', id)
+    if (error) {
+      console.error('[PATCH /api/plans/[id] is_public]', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true })
   }
 
   // 仅更新状态或 agent 进度

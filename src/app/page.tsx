@@ -24,9 +24,11 @@ import {
   Wallet,
   BookOpen,
   FolderOpen,
+  Compass,
   RefreshCw,
   Send,
 } from 'lucide-react';
+import { Globe, Lock, Loader2 as PublishLoader } from 'lucide-react';
 import { HomeForm } from '@/components/home/HomeForm';
 import { HeroSection } from '@/components/home/HeroSection';
 import { PromptPreviewCard } from '@/components/home/PromptPreviewCard';
@@ -62,6 +64,7 @@ export default function HomePage() {
   const [planCount, setPlanCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [weatherMap, setWeatherMap] = useState<Map<string, DayWeather>>(new Map());
+  const [activePOIId, setActivePOIId] = useState<string | undefined>(undefined);
 
   // 行程完成后获取天气
   useEffect(() => {
@@ -85,7 +88,13 @@ export default function HomePage() {
 
   const deviceIdShort = mounted ? getDeviceId().slice(0, 12) : '';
   const [showRefine, setShowRefine] = useState(false);
+  const [isPublic,   setIsPublic]   = useState(false);
+  const [togglingPublic, setTogglingPublic] = useState(false);
+
+  // 每次生成新行程时重置公开状态
+  useEffect(() => { setIsPublic(false); }, [planId]);
   const [refineFeedback, setRefineFeedback] = useState('');
+  const [showBudgetDetail, setShowBudgetDetail] = useState(false);
   const refineInsertRef = useRef<
     ((activity: Activity, dayIndex: number) => void) | null
   >(null);
@@ -286,6 +295,19 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
             <Link
+              href="/explore"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                color: '#374151',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              }}
+            >
+              <Compass size={15} style={{ color: '#8B5CF6' }} />
+              探索
+            </Link>
+            <Link
               href="/plans"
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
               style={{
@@ -456,21 +478,139 @@ export default function HomePage() {
                             {text}
                           </span>
                         ))}
+                        {/* 每日费用明细展开按钮 */}
+                        {itinerary.days?.length > 0 && (
+                          <button
+                            onClick={() => setShowBudgetDetail(v => !v)}
+                            className="flex items-center gap-1 text-xs transition-colors"
+                            style={{ color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            {showBudgetDetail ? '收起明细' : '查看明细'}
+                            {showBudgetDetail
+                              ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 8L6 4L10 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                              : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            }
+                          </button>
+                        )}
                       </div>
+
+                      {/* 每日费用明细 */}
+                      {showBudgetDetail && (() => {
+                        const parseCost = (cost?: string) => {
+                          if (!cost) return null
+                          const nums = [...cost.matchAll(/\d+\.?\d*/g)].map(m => parseFloat(m[0])).filter(n => n > 0 && n < 100000)
+                          if (!nums.length) return null
+                          return { min: Math.min(...nums), max: Math.max(...nums) }
+                        }
+                        const dayCosts = (itinerary.days ?? []).map((day: { title?: string; morning?: { cost?: string }[]; afternoon?: { cost?: string }[]; evening?: { cost?: string }[] }, idx: number) => {
+                          const acts = [...(day.morning ?? []), ...(day.afternoon ?? []), ...(day.evening ?? [])]
+                          let min = 0, max = 0
+                          for (const a of acts) {
+                            const c = parseCost(a.cost)
+                            if (c) { min += c.min; max += c.max }
+                          }
+                          return { title: day.title ?? `第${idx + 1}天`, min, max, hasData: min > 0 || max > 0 }
+                        }).filter(d => d.hasData)
+
+                        if (!dayCosts.length) return null
+                        const total = dayCosts.reduce((s, d) => s + d.max, 0)
+
+                        // 饼图用 SVG conic-gradient 模拟
+                        const COLORS = ['#2563EB','#3B82F6','#60A5FA','#93C5FD','#1D4ED8','#1E40AF','#BFDBFE']
+                        let cumPct = 0
+                        const slices = dayCosts.map((d, i) => {
+                          const pct = total > 0 ? (d.max / total) * 100 : 0
+                          const start = cumPct
+                          cumPct += pct
+                          return { ...d, pct, start, color: COLORS[i % COLORS.length] }
+                        })
+
+                        return (
+                          <div className="mt-4" style={{ fontSize: 12 }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ color: '#94A3B8' }}>
+                                  <th style={{ textAlign: 'left', fontWeight: 500, paddingBottom: 6, paddingRight: 8 }}>日期</th>
+                                  <th style={{ textAlign: 'right', fontWeight: 500, paddingBottom: 6 }}>费用</th>
+                                  <th style={{ textAlign: 'right', fontWeight: 500, paddingBottom: 6, paddingLeft: 8 }}>占比</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {slices.map((d, i) => (
+                                  <tr key={i} style={{ borderTop: '1px solid #F1F5F9' }}>
+                                    <td style={{ padding: '5px 8px 5px 0', color: '#374151' }}>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
+                                        {d.title}
+                                      </span>
+                                    </td>
+                                    <td style={{ textAlign: 'right', color: '#0F172A', fontWeight: 600, padding: '5px 0' }}>
+                                      {d.min === d.max ? `¥${d.min}` : `¥${d.min}–${d.max}`}
+                                    </td>
+                                    <td style={{ textAlign: 'right', color: '#94A3B8', padding: '5px 0 5px 8px' }}>
+                                      {d.pct.toFixed(0)}%
+                                    </td>
+                                  </tr>
+                                ))}
+                                <tr style={{ borderTop: '2px solid #E2E8F0' }}>
+                                  <td style={{ padding: '6px 8px 0 0', color: '#64748B', fontWeight: 500 }}>合计</td>
+                                  <td style={{ textAlign: 'right', color: '#2563EB', fontWeight: 700, paddingTop: 6 }}>¥{total}</td>
+                                  <td />
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div
-                      className="px-6 pb-4 flex items-center gap-2"
+                      className="px-6 pb-4 flex items-center gap-2 flex-wrap"
                       style={{ borderTop: '1px solid #F3F4F6', paddingTop: 12 }}
                     >
-                      <ExportButton itinerary={itinerary} />
+                      <ExportButton
+                        itinerary={itinerary}
+                        extra={
+                          <button
+                            onClick={async () => {
+                              if (!planId || togglingPublic) return
+                              setTogglingPublic(true)
+                              const next = !isPublic
+                              try {
+                                const res = await fetch(`/api/plans/${planId}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ isPublic: next, deviceId: getDeviceId() }),
+                                })
+                                if (res.ok) setIsPublic(next)
+                              } catch { /* 静默 */ } finally { setTogglingPublic(false) }
+                            }}
+                            disabled={!planId || togglingPublic}
+                            className="flex items-center gap-1.5 cursor-pointer transition-all duration-150 whitespace-nowrap"
+                            style={{
+                              background:   isPublic ? '#EFF6FF' : '#FFFFFF',
+                              border:       `1px solid ${isPublic ? '#BFDBFE' : '#E2E8F0'}`,
+                              color:        isPublic ? '#2563EB' : '#64748B',
+                              padding:      '7px 14px',
+                              borderRadius: 8,
+                              fontSize:     13,
+                              fontWeight:   500,
+                              opacity:      (!planId || togglingPublic) ? 0.6 : 1,
+                            }}
+                          >
+                            {togglingPublic
+                              ? <PublishLoader size={13} className="animate-spin" />
+                              : isPublic ? <Globe size={13} /> : <Lock size={13} />
+                            }
+                            {isPublic ? '已公开' : '设为公开'}
+                          </button>
+                        }
+                      />
                       <button
                         onClick={() => setShowRefine((v) => !v)}
                         className="flex items-center gap-1.5 cursor-pointer transition-all duration-150 hover:bg-gray-50 whitespace-nowrap"
                         style={{
                           background: showRefine ? '#EFF6FF' : '#FFFFFF',
-                          border: `1px solid ${
-                            showRefine ? '#BFDBFE' : '#E2E8F0'
-                          }`,
+                          border: `1px solid ${showRefine ? '#BFDBFE' : '#E2E8F0'}`,
                           color: showRefine ? '#2563EB' : '#64748B',
                           padding: '7px 14px',
                           borderRadius: 8,
@@ -586,9 +726,11 @@ export default function HomePage() {
                       <DayTimeline
                         dayPlans={itinerary.days ?? []}
                         activeDay={activeDay}
-                        onDayChange={setActiveDay}
+                        onDayChange={(d) => { setActiveDay(d); setActivePOIId(undefined); }}
                         refineMode={showRefine}
                         weatherMap={weatherMap}
+                        activePOIId={activePOIId}
+                        onMapPin={(poiId) => setActivePOIId(poiId)}
                         onActivityClick={(activity) => {
                           const dayIndex = (itinerary.days ?? []).findIndex(
                             (d) =>
@@ -611,7 +753,11 @@ export default function HomePage() {
                       className="lg:col-span-2 lg:sticky lg:top-6"
                     >
                       {itinerary.days?.[activeDay] ? (
-                        <RouteMap dayPlan={itinerary.days[activeDay]} />
+                        <RouteMap
+                          dayPlan={itinerary.days[activeDay]}
+                          activePOIId={activePOIId}
+                          onMarkerClick={(poiId) => setActivePOIId(poiId)}
+                        />
                       ) : (
                         <div
                           className="rounded-lg flex items-center justify-center"
