@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Suspense } from 'react'
 import { AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { TechBackground as LightBackground } from '@/components/portal/AuroraBackground'
@@ -88,12 +89,14 @@ export default async function PlanDetailPage({ params }: PageProps) {
   if (!plan.itinerary) notFound()
 
   return (
-    <PlanDetailClient
-      id={id}
-      it={plan.itinerary as FullItinerary}
-      savedAt={plan.saved_at ?? ''}
-      ownerDeviceId={plan.device_id ?? ''}
-      initIsPublic={plan.is_public ?? false}
-    />
+    <Suspense fallback={null}>
+      <PlanDetailClient
+        id={id}
+        it={plan.itinerary as FullItinerary}
+        savedAt={plan.saved_at ?? ''}
+        ownerDeviceId={plan.device_id ?? ''}
+        initIsPublic={plan.is_public ?? false}
+      />
+    </Suspense>
   )
 }

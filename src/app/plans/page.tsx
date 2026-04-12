@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -51,6 +51,14 @@ interface FavoriteRow {
 }
 
 export default function PlansPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlansContent />
+    </Suspense>
+  )
+}
+
+function PlansContent() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<TabType>(
     searchParams.get('tab') === 'favorites' ? 'favorites' : 'plans'
