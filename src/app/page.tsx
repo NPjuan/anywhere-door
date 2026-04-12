@@ -36,6 +36,7 @@ import { SponsorButton } from '@/components/ui/SponsorButton';
 import { IntroGuide } from '@/components/ui/IntroGuide';
 import { FooterPowered } from '@/components/layout/FooterPowered';
 import { ModelSelector } from '@/components/ui/ModelSelector';
+import { MCPBadge } from '@/components/ui/MCPBadge';
 
 export default function HomePage() {
   const {
@@ -728,6 +729,16 @@ export default function HomePage() {
 
       {/* Footer */}
       <FooterPowered />
+
+      {/* 左下角 — MCP 接入说明 */}
+      <motion.div
+        className="fixed bottom-6 left-6 z-40"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <MCPBadge />
+      </motion.div>
 
       {/* 右下角功能按钮组（垂直排列） */}
       <motion.div
