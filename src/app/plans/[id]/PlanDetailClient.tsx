@@ -13,6 +13,7 @@ import { DayTimeline } from '@/components/itinerary/DayTimeline'
 import { RouteMap } from '@/components/itinerary/RouteMap'
 import { XHSStyleNote } from '@/components/itinerary/XHSStyleNote'
 import { ExportButton } from '@/components/itinerary/ExportButton'
+import { toast } from '@/lib/toast'
 import { getDeviceId } from '@/lib/deviceId'
 import { FooterPowered } from '@/components/layout/FooterPowered'
 import { fetchWeather, type DayWeather } from '@/lib/weather'
@@ -120,27 +121,30 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
       if (!res.ok) throw new Error()
       setIsPublic(next)
     } catch {
-      /* 静默 */
+      toast.error('设置失败，请重试')
     } finally {
       setTogglingPublic(false)
     }
   }
 
   /* 单日重新规划（仅本人） */
-  const handleReplanDay = async (dayIndex: number) => {
+  const handleReplanDay = async (dayIndex: number, feedback?: string) => {
     if (replanningDay !== null || !isOwner) return
     setReplanningDay(dayIndex)
     try {
       const res = await fetch(`/api/plans/${id}/replan-day`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ dayIndex, deviceId: getDeviceId() }),
+        body:    JSON.stringify({ dayIndex, deviceId: getDeviceId(), feedback }),
       })
       if (!res.ok) throw new Error()
       const data = await res.json()
       setItDays(prev => prev.map((d, i) => i === dayIndex ? data.day : d))
       setActivePOIId(undefined)
-    } catch { /* 静默 */ } finally {
+      toast.success('重新规划成功')
+    } catch {
+      toast.error('规划失败，请重试')
+    } finally {
       setReplanningDay(null)
     }
   }
@@ -157,7 +161,10 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
       })
       if (!res.ok) throw new Error()
       setSaved(true)
-    } catch { /* 静默 */ } finally { setSaving(false) }
+      toast.success('已保存到我的计划')
+    } catch {
+      toast.error('保存失败，请重试')
+    } finally { setSaving(false) }
   }
 
   /* 收藏 / 取消收藏（访客） */
@@ -170,6 +177,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
         await fetch(`/api/favorites/${id}?deviceId=${encodeURIComponent(deviceId)}`, { method: 'DELETE' })
         setFavorited(false)
         setFavCount(c => Math.max(0, c - 1))
+        toast.success('已取消收藏')
       } else {
         await fetch('/api/favorites', {
           method:  'POST',
@@ -178,8 +186,11 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
         })
         setFavorited(true)
         setFavCount(c => c + 1)
+        toast.success('已收藏')
       }
-    } catch { /* 静默 */ } finally { setFavLoading(false) }
+    } catch {
+      toast.error('操作失败，请重试')
+    } finally { setFavLoading(false) }
   }
 
   return (

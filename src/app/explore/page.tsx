@@ -9,6 +9,7 @@ import { TechBackground as LightBackground } from '@/components/portal/AuroraBac
 import { MiniMap } from '@/components/map/MiniMap'
 import { FooterPowered } from '@/components/layout/FooterPowered'
 import { getDeviceId } from '@/lib/deviceId'
+import { toast } from '@/lib/toast'
 
 /* ============================================================
    /explore — 公开行程广场（瀑布流 + 无限滚动）
@@ -177,7 +178,10 @@ export default function ExplorePage() {
         ? { ...p, favorite_count: p.favorite_count + (already ? -1 : 1) }
         : p
       ))
-    } catch { /* 静默 */ } finally {
+      toast.success(already ? '已取消收藏' : '已收藏')
+    } catch {
+      toast.error('操作失败，请重试')
+    } finally {
       setFavLoading(f => ({ ...f, [planId]: false }))
     }
   }

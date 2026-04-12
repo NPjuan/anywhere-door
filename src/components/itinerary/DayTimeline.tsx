@@ -46,8 +46,8 @@ interface DayTimelineProps {
   weatherMap?:       Map<string, DayWeather>
   activePOIId?:      string
   onMapPin?:         (poiId: string) => void
-  onReplanDay?:      (dayIndex: number) => void   // 单日重新规划回调
-  replanningDay?:    number | null               // 正在规划中的天索引
+  onReplanDay?:      (dayIndex: number, feedback?: string) => void
+  replanningDay?:    number | null
 }
 
 export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin, onReplanDay, replanningDay }: DayTimelineProps) {
@@ -62,6 +62,12 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
   const safeActiveDay = Math.max(0, Math.min(activeDay, dayPlans.length - 1));
   const plan = dayPlans[safeActiveDay];
   if (!plan) return null;
+
+  // 反馈输入框状态（每次切换天时重置）
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  // 切换天时重置
+  useEffect(() => { setShowFeedback(false); setFeedback(''); }, [safeActiveDay]);
 
   const sections = [
     { label: '上午', labelEn: 'Morning',   activities: plan.morning   ?? [] },
@@ -159,35 +165,102 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
           className="flex flex-col gap-4"
         >
           {/* 当天标题 */}
-          <div className="flex items-start justify-between gap-2" style={{ borderLeft: '3px solid #2563EB', paddingLeft: 12 }}>
-            <div>
-              <p className="text-xs" style={{ color: '#94A3B8' }}>
-                第 {safeActiveDay + 1} 天{/^\d{4}-\d{2}-\d{2}$/.test(plan.date ?? '') ? ` · ${plan.date}` : ''}
-              </p>
-              <h3 className="text-base font-semibold mt-0.5" style={{ color: '#0F172A' }}>
-                {plan.title}
-              </h3>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start justify-between gap-2" style={{ borderLeft: '3px solid #2563EB', paddingLeft: 12 }}>
+              <div>
+                <p className="text-xs" style={{ color: '#94A3B8' }}>
+                  第 {safeActiveDay + 1} 天{/^\d{4}-\d{2}-\d{2}$/.test(plan.date ?? '') ? ` · ${plan.date}` : ''}
+                </p>
+                <h3 className="text-base font-semibold mt-0.5" style={{ color: '#0F172A' }}>
+                  {plan.title}
+                </h3>
+              </div>
+              {onReplanDay && (
+                <button
+                  onClick={() => {
+                    if (replanningDay !== null && replanningDay !== undefined) return
+                    setShowFeedback(f => !f)
+                    setFeedback('')
+                  }}
+                  disabled={replanningDay !== null && replanningDay !== undefined}
+                  className="shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 cursor-pointer transition-all"
+                  style={{
+                    background:   showFeedback ? '#EFF6FF' : '#FFFFFF',
+                    border:       `1px solid ${showFeedback ? '#BFDBFE' : '#E2E8F0'}`,
+                    borderRadius: 8,
+                    color:        replanningDay === safeActiveDay ? '#2563EB' : showFeedback ? '#2563EB' : '#64748B',
+                    opacity:      (replanningDay !== null && replanningDay !== undefined && replanningDay !== safeActiveDay) ? 0.4 : 1,
+                  }}
+                >
+                  {replanningDay === safeActiveDay
+                    ? <Loader2 size={11} className="animate-spin" />
+                    : <RefreshCw size={11} />
+                  }
+                  {replanningDay === safeActiveDay ? '规划中...' : '重新规划'}
+                </button>
+              )}
             </div>
-            {onReplanDay && (
-              <button
-                onClick={() => onReplanDay(safeActiveDay)}
-                disabled={replanningDay !== null && replanningDay !== undefined}
-                className="shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 cursor-pointer transition-all"
-                style={{
-                  background:   '#FFFFFF',
-                  border:       '1px solid #E2E8F0',
-                  borderRadius: 8,
-                  color:        replanningDay === safeActiveDay ? '#2563EB' : '#64748B',
-                  opacity:      (replanningDay !== null && replanningDay !== undefined && replanningDay !== safeActiveDay) ? 0.4 : 1,
-                }}
-              >
-                {replanningDay === safeActiveDay
-                  ? <Loader2 size={11} className="animate-spin" />
-                  : <RefreshCw size={11} />
-                }
-                {replanningDay === safeActiveDay ? '规划中...' : '重新规划'}
-              </button>
-            )}
+
+            {/* 反馈输入框 */}
+            <AnimatePresence>
+              {showFeedback && onReplanDay && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex flex-col gap-2 p-3 rounded-lg"
+                    style={{ background: '#F8FAFF', border: '1px solid #BFDBFE' }}>
+                    <p className="text-xs font-medium" style={{ color: '#2563EB' }}>
+                      哪里不满意？（可留空直接重新规划）
+                    </p>
+                    <textarea
+                      value={feedback}
+                      onChange={e => setFeedback(e.target.value)}
+                      placeholder="例如：想去更多自然景点、安排太密了、想加一个网红餐厅..."
+                      rows={2}
+                      className="w-full text-xs outline-none resize-none"
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 6,
+                        padding: '8px 10px',
+                        color: '#374151',
+                        fontFamily: 'inherit',
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#93C5FD'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#E2E8F0'}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => { setShowFeedback(false); setFeedback('') }}
+                        className="text-xs px-3 py-1.5 cursor-pointer"
+                        style={{ color: '#94A3B8', background: 'none', border: 'none' }}
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFeedback(false)
+                          onReplanDay(safeActiveDay, feedback.trim() || undefined)
+                          setFeedback('')
+                        }}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 cursor-pointer"
+                        style={{
+                          background: '#2563EB', color: '#FFFFFF',
+                          border: 'none', borderRadius: 6,
+                        }}
+                      >
+                        <RefreshCw size={10} />
+                        开始重新规划
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* antd Timeline */}
