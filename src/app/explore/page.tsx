@@ -186,7 +186,7 @@ export default function ExplorePage() {
     <main className="relative min-h-screen" style={{ background: '#F8FAFF' }}>
       <LightBackground />
 
-      <div className="relative max-w-5xl mx-auto px-4 py-16" style={{ zIndex: 1 }}>
+      <div className="relative max-w-5xl mx-auto px-4 pt-12 pb-16 sm:pt-16" style={{ zIndex: 1 }}>
 
         {/* 顶部 */}
         <div className="flex items-center justify-between mb-6">

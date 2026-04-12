@@ -51,6 +51,7 @@ export default function HomePage() {
     startPlanning,
     interrupt,
     retryAfterFailure,
+    reset,
     goBack,
     pendingRestore,
     pendingRestoreStatus,
@@ -840,33 +841,49 @@ export default function HomePage() {
                     行程生成失败
                   </h3>
                   <p className="text-sm" style={{ color: '#64748B' }}>
-                    AI
-                    在整合行程时遇到问题，可能是网络超时或服务繁忙，请重试一次
+                    AI 在整合行程时遇到问题，可能是网络超时或服务繁忙
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    if (planId) {
-                      fetch(`/api/plans/${planId}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'error' }),
-                      }).catch(() => {});
-                    }
-                    retryAfterFailure();
-                  }}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-all"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                    color: '#FFFFFF',
-                    boxShadow: '0 4px 14px rgba(37,99,235,0.30)',
-                    border: 'none',
-                  }}
-                >
-                  <RefreshCw size={14} />
-                  重新生成
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      if (planId) {
+                        fetch(`/api/plans/${planId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'error' }),
+                        }).catch(() => {});
+                      }
+                      retryAfterFailure();
+                    }}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-all"
+                    style={{
+                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                      color: '#FFFFFF',
+                      boxShadow: '0 4px 14px rgba(37,99,235,0.30)',
+                      border: 'none',
+                    }}
+                  >
+                    <RefreshCw size={14} />
+                    重试规划
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (planId) {
+                        fetch(`/api/plans/${planId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'error' }),
+                        }).catch(() => {});
+                      }
+                      reset();
+                    }}
+                    className="text-sm cursor-pointer transition-all"
+                    style={{ color: '#94A3B8', background: 'none', border: 'none', padding: 0 }}
+                  >
+                    重新填写
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

@@ -187,7 +187,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
       <LightBackground />
 
       <div className="relative" style={{ zIndex: 1 }}>
-        <div className="max-w-6xl mx-auto px-4 pt-16 pb-20">
+        <div className="max-w-6xl mx-auto px-4 pt-12 pb-16 sm:pt-16 sm:pb-20">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
             {/* 面包屑 */}
@@ -369,7 +369,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
               </div>
             </div>
             <div className="lg:col-span-2">
-              <div className="lg:sticky lg:top-6" style={{ height: 360 }}>
+              <div className="lg:sticky lg:top-6 h-[280px] sm:h-[360px]">
                 {itDays?.[activeDay]
                   ? <RouteMap
                       dayPlan={itDays[activeDay]}

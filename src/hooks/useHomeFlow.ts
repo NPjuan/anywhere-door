@@ -46,6 +46,7 @@ type HomeAction =
   | { type: 'SET_ERROR'; error: string }
   | { type: 'SET_WARNING'; warning: WarningType }
   | { type: 'INTERRUPT_TO_PREVIEW' }
+  | { type: 'RETRY_TO_PREVIEW'; finalPrompt: string }
   | { type: 'RESET' };
 
 const initialState: HomeFlowState = {
@@ -87,6 +88,8 @@ function reducer(state: HomeFlowState, action: HomeAction): HomeFlowState {
       return { ...state, error: action.error, step: 'form', warning: null, previewPrompt: '', finalPrompt: '' };
     case 'INTERRUPT_TO_PREVIEW':
       return { ...state, step: 'prompt-preview', warning: null, error: null };
+    case 'RETRY_TO_PREVIEW':
+      return { ...state, step: 'prompt-preview', finalPrompt: action.finalPrompt, error: null, warning: null };
     case 'RESET':
       return { ...initialState };
     default:
@@ -1025,15 +1028,20 @@ export function useHomeFlow() {
     }
   }, [clearItinerary, resetAgents, stopPolling]);
 
-  /* ── 生成失败后重试（保留表单数据，只重置步骤）── */
+  /* ── 生成失败后重试（保留 prompt，跳回确认页让用户一键重试）── */
   const retryAfterFailure = useCallback(() => {
     synthStreamActiveRef.current = false;
     stopPolling();
     resetAgents();
     clearItinerary();
-    dispatch({ type: 'RESET' });
+    const savedPrompt = state.finalPrompt || state.previewPrompt;
+    if (savedPrompt.trim()) {
+      dispatch({ type: 'RETRY_TO_PREVIEW', finalPrompt: savedPrompt });
+    } else {
+      dispatch({ type: 'RESET' });
+    }
     // 不清空 searchStore，保留用户填写的表单
-  }, [stopPolling, resetAgents, clearItinerary]);
+  }, [stopPolling, resetAgents, clearItinerary, state.finalPrompt, state.previewPrompt]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();

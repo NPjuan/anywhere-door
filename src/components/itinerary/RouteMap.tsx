@@ -475,7 +475,7 @@ export function RouteMap({ dayPlan, activePOIId, onMarkerClick }: RouteMapProps)
   }
 
   return (
-    <div className="relative w-full rounded-lg overflow-hidden" style={{ height: 400 }}>
+    <div className="relative w-full rounded-lg overflow-hidden h-[280px] sm:h-[400px]">
       {/* 加载遮罩 */}
       {!isLoaded && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2"

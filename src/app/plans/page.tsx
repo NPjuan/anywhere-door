@@ -230,7 +230,7 @@ function PlansContent() {
     <main className="relative min-h-screen" style={{ background: '#F8FAFF' }}>
       <LightBackground />
 
-      <div className="relative max-w-3xl mx-auto px-4 py-16" style={{ zIndex: 1 }}>
+      <div className="relative max-w-3xl mx-auto px-4 pt-12 pb-16 sm:pt-20 sm:pb-20" style={{ zIndex: 1 }}>
         {/* 顶部导航 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
