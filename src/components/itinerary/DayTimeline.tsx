@@ -6,6 +6,7 @@ import { Clock, MapPin, DollarSign, Navigation, AlertTriangle, RefreshCw, Loader
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, DayPlan } from '@/lib/agents/types';
 import type { DayWeather } from '@/lib/weather';
+import { RefineInput } from '@/components/form/RefineInput';
 
 /* 呼吸灯样式 */
 const BREATHE_STYLE = `
@@ -383,7 +384,7 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
 }
 
 /* ============================================================
-   FeedbackBox — 带 @ POI 选择的反馈输入框
+   FeedbackBox — 复用 RefineInput（antd Mentions），样式对齐「重新调整」
    ============================================================ */
 interface FeedbackBoxProps {
   dayPlan:    DayPlan
@@ -395,113 +396,27 @@ interface FeedbackBoxProps {
 }
 
 function FeedbackBox({ dayPlan, feedback, setFeedback, onConfirm, onCancel }: FeedbackBoxProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [showPOIs, setShowPOIs] = useState(false)
-  const [atPos,    setAtPos]    = useState(0)
-
-  // 收集当天所有 POI 名称
-  const poiNames = [
-    ...(dayPlan.morning   ?? []),
-    ...(dayPlan.afternoon ?? []),
-    ...(dayPlan.evening   ?? []),
-  ]
-    .filter(a => a.poi?.name)
-    .map(a => a.poi!.name)
-    .filter((v, i, arr) => arr.indexOf(v) === i) // 去重
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value
-    setFeedback(val)
-    // 检测 @ 字符
-    const cursor = e.target.selectionStart ?? val.length
-    const lastAt = val.lastIndexOf('@', cursor - 1)
-    if (lastAt >= 0 && (lastAt === 0 || val[lastAt - 1] === ' ' || val[lastAt - 1] === '\n')) {
-      setShowPOIs(true)
-      setAtPos(lastAt)
-    } else {
-      setShowPOIs(false)
-    }
-  }
-
-  const insertPOI = (name: string) => {
-    const before = feedback.slice(0, atPos)
-    const after  = feedback.slice(atPos + 1 + feedback.slice(atPos + 1).search(/[\s\n@]|$/))
-    const newVal = `${before}@${name} ${after}`
-    setFeedback(newVal)
-    setShowPOIs(false)
-    setTimeout(() => textareaRef.current?.focus(), 0)
-  }
-
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.18 }}
-      className="overflow-hidden"
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
     >
-      <div className="flex flex-col gap-2 p-3 rounded-lg relative"
+      <div className="flex flex-col gap-3 p-3 rounded-lg"
         style={{ background: '#F8FAFF', border: '1px solid #BFDBFE' }}>
         <p className="text-xs font-medium" style={{ color: '#2563EB' }}>
-          哪里不满意？输入 @ 可引用当天景点
+          哪里不满意？（可留空直接重新规划，输入 @ 引用当天景点）
         </p>
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={feedback}
-            onChange={handleChange}
-            placeholder="例如：@涩谷站 附近换成更有特色的小店、整体太赶了想轻松一些..."
-            rows={2}
-            className="w-full text-xs outline-none resize-none"
-            style={{
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              borderRadius: 6,
-              padding: '8px 10px',
-              color: '#374151',
-              fontFamily: 'inherit',
-            }}
-            onFocus={e => e.currentTarget.style.borderColor = '#93C5FD'}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = '#E2E8F0'
-              // 延迟关闭，让 insertPOI 能触发
-              setTimeout(() => setShowPOIs(false), 150)
-            }}
-          />
-          {/* @ POI 候选列表 */}
-          <AnimatePresence>
-            {showPOIs && poiNames.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.1 }}
-                className="absolute left-0 top-full mt-1 z-50 rounded-lg overflow-hidden"
-                style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                  minWidth: 180,
-                }}
-              >
-                <div className="px-2 py-1 text-xs" style={{ color: '#94A3B8', borderBottom: '1px solid #F1F5F9' }}>
-                  选择当天景点
-                </div>
-                {poiNames.map((name, i) => (
-                  <button
-                    key={i}
-                    onMouseDown={() => insertPOI(name)}
-                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition-colors hover:bg-blue-50"
-                    style={{ color: '#374151', background: 'none', border: 'none' }}
-                  >
-                    <MapPin size={10} style={{ color: '#2563EB', flexShrink: 0 }} />
-                    {name}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+
+        <RefineInput
+          dayPlans={[dayPlan]}
+          value={feedback}
+          onChange={setFeedback}
+          placeholder="例如：@涩谷站 附近换成更有特色的小店、整体太赶了想轻松一些..."
+          rows={2}
+        />
+
         <div className="flex gap-2 justify-end">
           <button
             onClick={onCancel}
@@ -512,8 +427,12 @@ function FeedbackBox({ dayPlan, feedback, setFeedback, onConfirm, onCancel }: Fe
           </button>
           <button
             onClick={() => onConfirm(feedback.trim())}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 cursor-pointer"
-            style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', borderRadius: 6 }}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 cursor-pointer transition-all"
+            style={{
+              background: feedback.trim() ? '#2563EB' : '#F3F4F6',
+              color:      feedback.trim() ? '#FFFFFF'  : '#9CA3AF',
+              border: 'none', borderRadius: 6,
+            }}
           >
             <RefreshCw size={10} />
             开始重新规划
