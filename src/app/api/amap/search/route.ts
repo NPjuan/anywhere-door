@@ -7,16 +7,16 @@ import { NextRequest, NextResponse } from 'next/server'
    · 海外城市 → 高德全球搜索（关键词带城市名），兜底 Nominatim
    ============================================================ */
 
-async function searchAmap(q: string, city: string, isChina: boolean, key: string) {
+async function searchAmap(q: string, city: string, key: string) {
   const url = new URL('https://restapi.amap.com/v3/place/text')
   url.searchParams.set('key',        key)
-  url.searchParams.set('keywords',   isChina ? q : `${q} ${city}`.trim())
+  url.searchParams.set('keywords',   q)
   url.searchParams.set('output',     'JSON')
   url.searchParams.set('offset',     '10')
   url.searchParams.set('page',       '1')
   url.searchParams.set('extensions', 'base')
 
-  if (isChina && city) {
+  if (city) {
     url.searchParams.set('city',      city)
     url.searchParams.set('citylimit', 'true')
   }
@@ -82,19 +82,18 @@ export async function GET(req: NextRequest) {
   const key     = process.env.AMAP_SERVER_KEY
 
   try {
-    // 1. 先用高德搜（国内 citylimit，海外全局+城市名拼入关键词）
-    if (key) {
-      const pois = await searchAmap(q, city, isChina, key)
-      if (pois.length > 0) return NextResponse.json({ pois })
-    }
-
-    // 2. 海外且高德无结果 → Nominatim 兜底
-    if (!isChina) {
+    if (isChina) {
+      // 国内 → 高德（citylimit）
+      if (key) {
+        const pois = await searchAmap(q, city, key)
+        return NextResponse.json({ pois })
+      }
+      return NextResponse.json({ pois: [] })
+    } else {
+      // 海外 → 直接 Nominatim，不走高德
       const pois = await searchNominatim(q, city)
       return NextResponse.json({ pois })
     }
-
-    return NextResponse.json({ pois: [] })
   } catch (e) {
     console.error('[/api/amap/search]', e)
     return NextResponse.json({ pois: [] })
