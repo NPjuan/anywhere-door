@@ -901,6 +901,7 @@ export function useHomeFlow() {
       arrivalTime?: string;
       departureTime?: string;
       travelers?: number;
+      budgetLimit?: string;
     }) => {
       dispatch({ type: 'START_GENERATING' });
       abortRef.current = new AbortController();

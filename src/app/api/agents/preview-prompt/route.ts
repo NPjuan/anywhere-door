@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     arrivalTime,
     departureTime,
     travelers,
+    budgetLimit,
     model,
   } = await req.json()
 
@@ -68,6 +69,9 @@ export async function POST(req: NextRequest) {
   }
   if (mustAvoidNames?.length) {
     constraints.push(`不想去：${mustAvoidNames.join('、')}，请在规划中避开这些地点`)
+  }
+  if (budgetLimit) {
+    constraints.push(`预算上限：每人 ${budgetLimit} 元，请控制总花费在此范围内，推荐性价比高的选择`)
   }
 
   const constraintSection = constraints.length > 0

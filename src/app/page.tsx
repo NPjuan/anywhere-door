@@ -191,6 +191,7 @@ export default function HomePage() {
       arrivalTime: params.arrivalTime || undefined,
       departureTime: params.departureTime || undefined,
       travelers: params.travelers ?? 1,
+      budgetLimit: params.budgetLimit || undefined,
     });
   };
 
@@ -673,7 +674,6 @@ export default function HomePage() {
                               {[
                                 '回酒店时间太晚了，请提前',
                                 '行程太密集，节奏放慢一些',
-                                '某个地点不想去，请替换',
                                 '景点之间距离太远，优化路线',
                                 '预算超了，换一些免费景点',
                                 '增加一个好的餐厅推荐',
@@ -755,27 +755,12 @@ export default function HomePage() {
                         dayPlans={itinerary.days ?? []}
                         activeDay={activeDay}
                         onDayChange={(d) => { setActiveDay(d); setActivePOIId(undefined); }}
-                        refineMode={showRefine}
                         weatherMap={weatherMap}
                         activePOIId={activePOIId}
                         onMapPin={(poiId) => setActivePOIId(poiId)}
                         onReplanDay={planId ? handleReplanDay : undefined}
                         replanningDay={replanningDay}
                         currency={itinerary.budget?.currency}
-                        onActivityClick={(activity) => {
-                          const dayIndex = (itinerary.days ?? []).findIndex(
-                            (d) =>
-                              [
-                                ...(d.morning ?? []),
-                                ...(d.afternoon ?? []),
-                                ...(d.evening ?? []),
-                              ].includes(activity)
-                          );
-                          refineInsertRef.current?.(
-                            activity,
-                            dayIndex >= 0 ? dayIndex : activeDay
-                          );
-                        }}
                       />
                     </div>
 

@@ -88,6 +88,7 @@ export const HomeForm = memo(
       setDateRange,
       setPrompt,
       setTravelers,
+      setBudgetLimit,
       setHotelPOI,
       setMustVisit,
       setMustAvoid,
@@ -297,24 +298,45 @@ export const HomeForm = memo(
                       style={{ width: 40, background: 'linear-gradient(to right, transparent, #FFFFFF)' }}
                     />
                   </div>
-                  <div className="ml-auto flex items-center gap-1 shrink-0">
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>共</span>
-                    <InputNumber
-                      min={1}
-                      max={20}
-                      value={params.travelers ?? 1}
-                      onChange={(v) => setTravelers(v ?? 1)}
-                      controls={false}
-                      size="small"
-                      style={{
-                        width: 28,
-                        fontSize: 12,
-                        color: '#9CA3AF',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: 4,
-                      }}
-                    />
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>人出行</span>
+                  <div className="ml-auto flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: '#9CA3AF' }}>共</span>
+                      <InputNumber
+                        min={1}
+                        max={20}
+                        value={params.travelers ?? 1}
+                        onChange={(v) => setTravelers(v ?? 1)}
+                        controls={false}
+                        size="small"
+                        style={{
+                          width: 28,
+                          fontSize: 12,
+                          color: '#9CA3AF',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: 4,
+                        }}
+                      />
+                      <span className="text-xs" style={{ color: '#9CA3AF' }}>人</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs" style={{ color: '#9CA3AF' }}>预算</span>
+                      <InputNumber
+                        min={0}
+                        value={params.budgetLimit ? Number(params.budgetLimit) : undefined}
+                        onChange={(v) => setBudgetLimit(v ? String(v) : '')}
+                        controls={false}
+                        size="small"
+                        placeholder="不限"
+                        style={{
+                          width: 60,
+                          fontSize: 12,
+                          color: '#9CA3AF',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: 4,
+                        }}
+                      />
+                      <span className="text-xs" style={{ color: '#9CA3AF' }}>元/人</span>
+                    </div>
                   </div>
                 </div>
                 <textarea
