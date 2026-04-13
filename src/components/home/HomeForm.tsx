@@ -364,6 +364,7 @@ export const HomeForm = memo(
                         onChange={handleSetHotelPOI}
                         placeholder="搜索住宿地址，AI 将以此为出发基点"
                         city={params.destination?.name ?? ''}
+                        country={params.destination?.country ?? '中国'}
                       />
                     </div>
                   </div>
@@ -389,6 +390,7 @@ export const HomeForm = memo(
                           onChange={handleAddMustVisit}
                           placeholder="搜索并添加"
                           city={params.destination?.name ?? ''}
+                          country={params.destination?.country ?? '中国'}
                         />
                       </div>
                       {mustVisit.length > 0 && (
@@ -436,6 +438,7 @@ export const HomeForm = memo(
                           onChange={handleAddMustAvoid}
                           placeholder="搜索并添加"
                           city={params.destination?.name ?? ''}
+                          country={params.destination?.country ?? '中国'}
                         />
                       </div>
                       {mustAvoid.length > 0 && (

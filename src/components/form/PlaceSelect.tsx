@@ -18,6 +18,7 @@ interface PlaceSelectProps {
   onChange?:    (v: PlacePOI | PlacePOI[] | null) => void
   placeholder?: string
   city?:        string    // 限定搜索城市（传目的地城市名）
+  country?:     string    // 目的地国家（用于判断海外搜索策略）
 }
 
 export function PlaceSelect({
@@ -26,6 +27,7 @@ export function PlaceSelect({
   onChange,
   placeholder = '搜索地点...',
   city = '',
+  country = '中国',
 }: PlaceSelectProps) {
   const [options, setOptions]   = useState<{ value: string; label: React.ReactNode; poi: PlacePOI }[]>([])
   const [loading, setLoading]   = useState(false)
@@ -62,7 +64,7 @@ export function PlaceSelect({
     debounceRef.current = setTimeout(async () => {
       setLoading(true)
       try {
-        const params = new URLSearchParams({ q, city })
+        const params = new URLSearchParams({ q, city, country })
         const res  = await fetch(`/api/amap/search?${params}`)
         const data = await res.json() as { pois: PlacePOI[] }
 
@@ -74,7 +76,7 @@ export function PlaceSelect({
       }
     }, 350)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city])
+  }, [city, country])
 
   /* 把 antd value（id string）映射回 PlacePOI */
   const antdValue = (() => {
