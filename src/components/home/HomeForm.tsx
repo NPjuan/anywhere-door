@@ -362,7 +362,11 @@ export const HomeForm = memo(
                       <PlaceSelect
                         value={hotelPOI}
                         onChange={handleSetHotelPOI}
-                        placeholder="搜索住宿地址，AI 将以此为出发基点"
+                        placeholder={
+                          params.destination?.country && params.destination.country !== '中国'
+                            ? '搜索住宿地址（建议用英文更准确）'
+                            : '搜索住宿地址，AI 将以此为出发基点'
+                        }
                         city={params.destination?.name ?? ''}
                         country={params.destination?.country ?? '中国'}
                       />
@@ -388,7 +392,11 @@ export const HomeForm = memo(
                         <PlaceSelect
                           value={null}
                           onChange={handleAddMustVisit}
-                          placeholder="搜索并添加"
+                          placeholder={
+                            params.destination?.country && params.destination.country !== '中国'
+                              ? '英文搜索更准确'
+                              : '搜索并添加'
+                          }
                           city={params.destination?.name ?? ''}
                           country={params.destination?.country ?? '中国'}
                         />
@@ -436,7 +444,11 @@ export const HomeForm = memo(
                         <PlaceSelect
                           value={null}
                           onChange={handleAddMustAvoid}
-                          placeholder="搜索并添加"
+                          placeholder={
+                            params.destination?.country && params.destination.country !== '中国'
+                              ? '英文搜索更准确'
+                              : '搜索并添加'
+                          }
                           city={params.destination?.name ?? ''}
                           country={params.destination?.country ?? '中国'}
                         />
