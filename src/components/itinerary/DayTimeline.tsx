@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, DayPlan } from '@/lib/agents/types';
 import type { DayWeather } from '@/lib/weather';
 import { RefineInput } from '@/components/form/RefineInput';
+import { getCurrencySymbol } from '@/lib/currency';
 
 /* 呼吸灯样式 */
 const BREATHE_STYLE = `
@@ -49,9 +50,10 @@ interface DayTimelineProps {
   onMapPin?:         (poiId: string) => void
   onReplanDay?:      (dayIndex: number, feedback?: string) => void
   replanningDay?:    number | null
+  currency?:         string   // 货币代码，用于每日费用汇总
 }
 
-export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin, onReplanDay, replanningDay }: DayTimelineProps) {
+export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin, onReplanDay, replanningDay, currency }: DayTimelineProps) {
   if (!dayPlans || !Array.isArray(dayPlans) || dayPlans.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-sm" style={{ color: '#94A3B8' }}>
@@ -259,9 +261,10 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
                 <DollarSign size={12} style={{ color: '#16A34A' }} />
                 <span>今日预估</span>
                 <span style={{ fontWeight: 600, color: '#0F172A' }}>
-                  {cost.min === cost.max
-                    ? `¥${cost.min}`
-                    : `¥${cost.min}–${cost.max}`}
+                  {(() => {
+                    const sym = getCurrencySymbol(currency)
+                    return cost.min === cost.max ? `${sym}${cost.min}` : `${sym}${cost.min}–${cost.max}`
+                  })()}
                 </span>
               </div>
             )

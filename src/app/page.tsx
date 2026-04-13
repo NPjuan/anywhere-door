@@ -39,6 +39,7 @@ import { IntroGuide } from '@/components/ui/IntroGuide';
 import { FooterPowered } from '@/components/layout/FooterPowered';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { MCPBadge } from '@/components/ui/MCPBadge';
+import { getCurrencySymbol } from '@/lib/currency';
 
 export default function HomePage() {
   const {
@@ -491,7 +492,7 @@ export default function HomePage() {
                             icon: <Wallet size={12} />,
                             text:
                               itinerary.budget?.low && itinerary.budget?.high
-                                ? `预算 ¥${itinerary.budget.low}–${itinerary.budget.high}`
+                                ? `预算 ${getCurrencySymbol(itinerary.budget.currency)}${itinerary.budget.low}–${itinerary.budget.high}`
                                 : '预算待定',
                           },
                         ].map(({ icon, text }, i) => (
@@ -522,6 +523,7 @@ export default function HomePage() {
 
                       {/* 每日费用明细 */}
                       {showBudgetDetail && (() => {
+                        const sym = getCurrencySymbol(itinerary.budget?.currency)
                         const parseCost = (cost?: string) => {
                           if (!cost) return null
                           const nums = [...cost.matchAll(/\d+\.?\d*/g)].map(m => parseFloat(m[0])).filter(n => n > 0 && n < 100000)
@@ -571,7 +573,7 @@ export default function HomePage() {
                                       </span>
                                     </td>
                                     <td style={{ textAlign: 'right', color: '#0F172A', fontWeight: 600, padding: '5px 0' }}>
-                                      {d.min === d.max ? `¥${d.min}` : `¥${d.min}–${d.max}`}
+                                      {d.min === d.max ? `${sym}${d.min}` : `${sym}${d.min}–${d.max}`}
                                     </td>
                                     <td style={{ textAlign: 'right', color: '#94A3B8', padding: '5px 0 5px 8px' }}>
                                       {d.pct.toFixed(0)}%
@@ -580,7 +582,7 @@ export default function HomePage() {
                                 ))}
                                 <tr style={{ borderTop: '2px solid #E2E8F0' }}>
                                   <td style={{ padding: '6px 8px 0 0', color: '#64748B', fontWeight: 500 }}>合计</td>
-                                  <td style={{ textAlign: 'right', color: '#2563EB', fontWeight: 700, paddingTop: 6 }}>¥{total}</td>
+                                  <td style={{ textAlign: 'right', color: '#2563EB', fontWeight: 700, paddingTop: 6 }}>{sym}{total}</td>
                                   <td />
                                 </tr>
                               </tbody>
@@ -759,6 +761,7 @@ export default function HomePage() {
                         onMapPin={(poiId) => setActivePOIId(poiId)}
                         onReplanDay={planId ? handleReplanDay : undefined}
                         replanningDay={replanningDay}
+                        currency={itinerary.budget?.currency}
                         onActivityClick={(activity) => {
                           const dayIndex = (itinerary.days ?? []).findIndex(
                             (d) =>

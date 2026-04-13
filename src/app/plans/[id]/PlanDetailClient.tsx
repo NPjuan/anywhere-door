@@ -18,6 +18,7 @@ import { getDeviceId } from '@/lib/deviceId'
 import { FooterPowered } from '@/components/layout/FooterPowered'
 import { fetchWeather, type DayWeather } from '@/lib/weather'
 import type { FullItinerary, XHSNote } from '@/lib/agents/types'
+import { getCurrencySymbol } from '@/lib/currency'
 
 /* ============================================================
    PlanDetailClient — /plans/[id] 客户端部分
@@ -260,7 +261,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
                   {[
                     { icon: <MapPin size={13} />,   text: it.destination },
                     { icon: <Calendar size={13} />, text: `${it.days?.length ?? 0} 天` },
-                    { icon: <Wallet size={13} />,   text: it.budget ? `预算 ¥${it.budget.low}–${it.budget.high}` : '预算未定' },
+                    { icon: <Wallet size={13} />,   text: it.budget ? `预算 ${getCurrencySymbol(it.budget.currency)}${it.budget.low}–${it.budget.high}` : '预算未定' },
                   ].map(({ icon, text }, i) => (
                     <span key={i} className="flex items-center gap-1.5 text-sm" style={{ color: '#2563EB' }}>
                       {icon}{text}
@@ -376,6 +377,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
                   onMapPin={(poiId) => setActivePOIId(poiId)}
                   onReplanDay={isOwner ? handleReplanDay : undefined}
                   replanningDay={replanningDay}
+                  currency={it.budget?.currency}
                 />
               </div>
             </div>
