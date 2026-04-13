@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
   const page   = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10))
   const limit  = Math.min(50, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '10', 10)))
   const search = req.nextUrl.searchParams.get('search')?.trim() ?? ''
+  const status = req.nextUrl.searchParams.get('status')?.trim() ?? ''
   const from   = (page - 1) * limit
   const to     = from + limit - 1
 
@@ -56,6 +57,11 @@ export async function GET(req: NextRequest) {
     .eq('device_id', deviceId)
     .order('saved_at', { ascending: false })
     .range(from, to)
+
+  // 按状态过滤（如 ?status=pending）
+  if (status) {
+    query = query.eq('status', status)
+  }
 
   // 模糊搜索：匹配目的地或标题
   if (search) {

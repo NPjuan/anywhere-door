@@ -653,16 +653,39 @@ export function useHomeFlow() {
      页面加载：从 DB 恢复状态
      - pending → 恢复表单 + 继续轮询规划进度
      - 其他状态 → 仅恢复表单填写内容（不进入规划流程）
+
+     ⚠️ 优先恢复 pending 计划：用户可能在规划中保存了别人的计划，
+     此时最新记录是 done，但 pending 计划仍需继续。
   ───────────────────────────────────────────────────────── */
   useEffect(() => {
     const deviceId = getDeviceId();
     if (!deviceId) return;
 
-    fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=1&limit=1`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(async (data) => {
-        if (!data?.plans?.length) return;
-        const latest = data.plans[0];
+    // 先查是否有 pending 计划，没有再取最新的
+    const fetchLatest = async () => {
+      try {
+        // 1) 优先：有没有进行中的 pending 计划？
+        const pendingRes = await fetch(
+          `/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=1&limit=1&status=pending`
+        )
+        const pendingData = pendingRes.ok ? await pendingRes.json() : null
+        if (pendingData?.plans?.length) {
+          return pendingData.plans[0]
+        }
+
+        // 2) 没有 pending，取最新一条
+        const latestRes = await fetch(
+          `/api/plans?deviceId=${encodeURIComponent(deviceId)}&page=1&limit=1`
+        )
+        const latestData = latestRes.ok ? await latestRes.json() : null
+        return latestData?.plans?.[0] ?? null
+      } catch {
+        return null
+      }
+    }
+
+    fetchLatest().then(async (latest) => {
+        if (!latest) return;
 
         // 取完整 plan 拿 planning_params
         const detail = await fetch(`/api/plans/${latest.id}`, {
