@@ -409,7 +409,7 @@ function FeedbackBox({ dayPlan, feedback, setFeedback, onConfirm, onCancel }: Fe
       <div className="flex flex-col gap-3 p-3 rounded-lg"
         style={{ background: '#F8FAFF', border: '1px solid #BFDBFE' }}>
         <p className="text-xs font-medium" style={{ color: '#2563EB' }}>
-          哪里不满意？（可留空直接重新规划，输入 @ 引用当天景点）
+          哪里不满意？输入 @ 可引用当天具体景点（可留空直接重新规划）
         </p>
 
         <RefineInput

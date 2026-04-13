@@ -666,7 +666,7 @@ export default function HomePage() {
                               className="text-xs font-medium"
                               style={{ color: '#6B7280' }}
                             >
-                              告诉 AI 你想调整哪里
+                              告诉 AI 你想调整哪里，输入 @ 可引用具体景点
                             </p>
 
                             <div className="flex flex-wrap gap-1.5">
@@ -704,7 +704,7 @@ export default function HomePage() {
                               value={refineFeedback}
                               onChange={setRefineFeedback}
                               insertRef={refineInsertRef}
-                              placeholder="描述调整需求，输入 @ 搜索并引用行程地点，或点击下方卡片直接引用..."
+                              placeholder="输入 @ 可搜索并引用行程中的具体地点，也可点击下方卡片快捷引用"
                               rows={3}
                             />
 
