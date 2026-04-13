@@ -286,7 +286,12 @@ ${agentDataSection}${poiCoordsSection}
         let parsed = parseJSON<Record<string, unknown>>(accumulated)
 
         if (!parsed) {
-          console.error(JSON.stringify({ event: 'synthesis-parse-failed', planId, chars: accumulated.length, preview: accumulated.slice(0, 200) }))
+          console.error(JSON.stringify({
+            event: 'synthesis-parse-failed', planId,
+            chars: accumulated.length,
+            first500: accumulated.slice(0, 500),
+            last500:  accumulated.slice(-500),
+          }))
           throw new Error('JSON parse failed')
         }
 
@@ -352,12 +357,22 @@ ${agentDataSection}${poiCoordsSection}
 
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err)
-        console.error(JSON.stringify({ event: 'synthesis-error', planId, error: errMsg, ms: Date.now() - synthT0 }))
-        const errProg = { ...updatedProgress, synthesis: { status: 'error', preview: String(err) } }
+        console.error(JSON.stringify({ event: 'synthesis-error', planId, error: errMsg, ms: Date.now() - synthT0, rawChars: accumulated.length }))
+
+        // 保存错误详情 + 原始 AI 输出到 DB，方便排查 JSON parse 失败
+        const errProg = {
+          ...updatedProgress,
+          synthesis: {
+            status:     'error',
+            preview:    `Error: ${errMsg}`,
+            raw_output: accumulated || null,              // 完整原始 AI 输出
+            raw_length: accumulated.length,
+            error_at:   new Date().toISOString(),
+          },
+        }
         await supabase.from('plans').update({
           status:          'error',
           agent_progress:  errProg,
-          planning_params: null,
         }).eq('id', planId)
         // 向前端发送错误标记
         controller.enqueue(encoder.encode('\n\n__SYNTHESIS_ERROR__'))
