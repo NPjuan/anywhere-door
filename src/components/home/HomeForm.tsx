@@ -339,25 +339,35 @@ export const HomeForm = memo(
                     </div>
                   </div>
                 </div>
-                <textarea
-                  value={params.prompt}
-                  onChange={(e) => handlePromptChange(e.target.value)}
-                  placeholder="细节描述越多，任意门开的越准，向任意门许愿吧！"
-                  rows={2}
-                  className="w-full p-3 border focus:outline-none"
-                  style={{
-                    borderRadius: 8,
-                    borderColor: '#E5E7EB',
-                    color: '#111827',
-                    fontSize: 13,
-                    backgroundColor: '#FAFBFC',
-                    outline: 'none',
-                    boxShadow: 'none',
-                    resize: 'vertical',
-                    minHeight: '3.5rem',
-                    maxHeight: '7rem',
-                  }}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <textarea
+                    value={params.prompt}
+                    onChange={(e) => handlePromptChange(e.target.value)}
+                    placeholder="细节描述越多，任意门开的越准，向任意门许愿吧！"
+                    rows={2}
+                    className="w-full p-3 border focus:outline-none transition-colors"
+                    style={{
+                      borderRadius: 8,
+                      borderColor: params.prompt.length > 500 ? '#FCA5A5' : '#E5E7EB',
+                      color: '#111827',
+                      fontSize: 13,
+                      backgroundColor: '#FAFBFC',
+                      outline: 'none',
+                      boxShadow: params.prompt.length > 500 ? '0 0 0 2px rgba(248,113,113,0.1)' : 'none',
+                      resize: 'vertical',
+                      minHeight: '3.5rem',
+                      maxHeight: '7rem',
+                    }}
+                  />
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs" style={{ color: '#94A3B8' }}>
+                      {params.prompt.length > 0 ? `${params.prompt.length} 字` : '0 字'}
+                    </span>
+                    <span className="text-xs" style={{ color: params.prompt.length > 500 ? '#EF4444' : '#CBD5E1' }}>
+                      {params.prompt.length}/500
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* ── 位置约束条件 ── */}

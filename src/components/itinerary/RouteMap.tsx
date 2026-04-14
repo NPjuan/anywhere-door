@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Map, Locate, Plus, Minus } from 'lucide-react'
 import type { DayPlan, POI, Activity } from '@/lib/agents/types'
+import { MapSkeleton } from '@/components/ui/Skeleton'
 
 /* ============================================================
    RouteMap — 双地图支持
@@ -476,15 +477,8 @@ export function RouteMap({ dayPlan, activePOIId, onMarkerClick }: RouteMapProps)
 
   return (
     <div className="relative w-full rounded-lg overflow-hidden h-[280px] sm:h-[400px]">
-      {/* 加载遮罩 */}
-      {!isLoaded && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2"
-          style={{ background: '#F8FAFF' }}>
-          <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: `${DAY_COLOR} transparent ${DAY_COLOR} ${DAY_COLOR}` }} />
-          <p className="text-xs" style={{ color: '#94A3B8' }}>地图加载中...</p>
-        </div>
-      )}
+      {/* 加载骨架 */}
+      {!isLoaded && <MapSkeleton />}
 
       {/* 地图容器 */}
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />

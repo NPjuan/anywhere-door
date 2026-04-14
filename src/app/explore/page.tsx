@@ -10,6 +10,7 @@ import { MiniMap } from '@/components/map/MiniMap'
 import { FooterPowered } from '@/components/layout/FooterPowered'
 import { getDeviceId } from '@/lib/deviceId'
 import { toast } from '@/lib/toast'
+import { ExplorePlanCardSkeleton } from '@/components/ui/Skeleton'
 
 /* ============================================================
    /explore — 公开行程广场（瀑布流 + 无限滚动）
@@ -248,6 +249,7 @@ export default function ExplorePage() {
                 color:        sort === key ? '#FFFFFF' : '#64748B',
                 border:       `1px solid ${sort === key ? '#2563EB' : '#E5E7EB'}`,
                 borderRadius: 8, fontWeight: sort === key ? 600 : 400,
+                minHeight: 44,
               }}>
               {key === 'popular' && <Heart size={11} style={{ fill: sort === key ? 'currentColor' : 'none' }} />}
               {label}
@@ -265,6 +267,7 @@ export default function ExplorePage() {
                 color:        styleFilter === tag ? '#FFFFFF' : '#64748B',
                 border:       `1px solid ${styleFilter === tag ? '#2563EB' : '#E5E7EB'}`,
                 borderRadius: 8, fontWeight: styleFilter === tag ? 600 : 400, whiteSpace: 'nowrap',
+                minHeight: 44,
               }}>
               {tag}
             </button>
@@ -281,7 +284,11 @@ export default function ExplorePage() {
 
         {/* 首屏加载 */}
         {loading && !error && (
-          <div className="flex justify-center py-24"><Spin size="large" /></div>
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ExplorePlanCardSkeleton key={i} />
+            ))}
+          </div>
         )}
 
         {/* 空状态 */}
@@ -430,6 +437,7 @@ export default function ExplorePage() {
                                     border:       `1px solid ${j === safeIdx ? '#2563EB' : '#E5E7EB'}`,
                                     borderRadius: 6,
                                     fontWeight:   j === safeIdx ? 600 : 400,
+                                    minHeight:    44,
                                   }}
                                 >
                                   Day {d.day}

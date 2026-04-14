@@ -123,7 +123,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
                 onClick={() => onDayChange(i)}
                 aria-pressed={i === safeActiveDay}
                 aria-label={`第 ${i + 1} 天：${dp.title}`}
-                className="shrink-0 px-3 py-1.5 text-xs font-medium cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 flex flex-col items-center gap-0.5"
+                className="shrink-0 px-3 py-2 text-xs font-medium cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 flex flex-col items-center gap-0.5"
                 style={{
                   background:   i === safeActiveDay ? '#2563EB' : 'transparent',
                   border:       '1px solid',
@@ -131,6 +131,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
                   color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
                   borderRadius: 8,
                   minWidth:     64,
+                  minHeight:    44,
                 }}
               >
                 <span>Day {i + 1}</span>
@@ -297,9 +298,22 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
     }
   }, [isActive])
 
+  // 构建无障碍标签
+  const ariaLabel = (() => {
+    const parts = [
+      `${activity.time} ${activity.name}`,
+      activity.description ? `, ${activity.description}` : '',
+      activity.duration ? `, ${activity.duration}` : '',
+      activity.cost ? `, 费用${activity.cost}` : '',
+      activity.poi?.address ? `, 地址：${activity.poi.address}` : '',
+    ].filter(Boolean)
+    return parts.join('')
+  })()
+
   return (
     <motion.div
       ref={cardRef}
+      aria-label={ariaLabel}
       className={`py-3 px-3.5 -mt-1${refineMode ? ' breathe-card' : ''}`}
       style={{
         background:   isActive ? '#EFF6FF' : '#FAFBFC',
@@ -340,6 +354,11 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
                 border:      `1px solid ${isActive ? '#2563EB' : '#E2E8F0'}`,
                 color:       isActive ? '#FFFFFF' : '#94A3B8',
                 flexShrink:  0,
+                minWidth:    44,
+                minHeight:   44,
+                display:     'flex',
+                alignItems:  'center',
+                justifyContent: 'center',
               }}
             >
               <MapPin size={10} />
