@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import {
   ArrowLeft, MapPin, Calendar, Wallet,
   BookOpen, CheckCircle, Bookmark, Loader2, Globe, Lock, Heart,
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic }: Props) {
+  const prefersReducedMotion = useReducedMotion()
   const searchParams  = useSearchParams()
   const fromFavorites = searchParams.get('from') === 'favorites'
   const fromExplore   = searchParams.get('from') === 'explore'
@@ -200,7 +202,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
 
       <div className="relative" style={{ zIndex: 1 }}>
         <div className="max-w-6xl mx-auto px-4 pt-12 pb-16 sm:pt-16 sm:pb-20">
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <motion.div initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4 }}>
 
             {/* 面包屑 */}
             <div className="flex items-center gap-2 mb-6 text-xs" style={{ color: '#94A3B8' }}>
@@ -362,8 +364,9 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
           {/* 时间线 + 地图 */}
           <motion.div
             id="itinerary-day-row"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }} 
+            animate={{ opacity: 1 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1 }}
             className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-10"
           >
             <div className="lg:col-span-3">
@@ -402,8 +405,7 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
 
           {/* 攻略参考 */}
           {xhsNotes.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }} className="mb-8">
+            <motion.div initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.2 }} className="mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <BookOpen size={16} style={{ color: '#818CF8' }} />
                 <h3 className="font-semibold" style={{ color: '#0F172A' }}>实用攻略参考</h3>

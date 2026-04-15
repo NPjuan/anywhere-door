@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Lightbulb, X, ArrowRight, ArrowLeft } from 'lucide-react'
 
@@ -42,14 +42,15 @@ const STEPS = [
   },
 ]
 
+const emptySubscribe = () => () => {}
+
 export function IntroGuide() {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(0)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
   const [direction, setDirection] = useState<1 | -1>(1)
 
   useEffect(() => {
-    setMounted(true)
     if (!localStorage.getItem(STORAGE_KEY)) {
       // 稍微延迟，让页面先渲染完毕
       setTimeout(() => setOpen(true), 600)

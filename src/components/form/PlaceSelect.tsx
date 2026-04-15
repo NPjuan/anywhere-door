@@ -75,7 +75,6 @@ export function PlaceSelect({
         setLoading(false)
       }
     }, 350)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, country])
 
   /* 把 antd value（id string）映射回 PlacePOI */

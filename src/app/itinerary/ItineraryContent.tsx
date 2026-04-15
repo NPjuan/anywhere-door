@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, MapPin, Calendar, Wallet, BookOpen } from 'lucide-react';
 import { DeepBackground } from '@/components/portal/AuroraBackground';
@@ -22,7 +22,6 @@ import type { XHSNote } from '@/lib/agents/types';
 
 export default function ItineraryContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { streamText } = useAgentStore();
   const { itinerary, activeDay, setItinerary, setActiveDay } =
     useItineraryStore();

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { getQuotaStats } from '@/lib/quotaMonitor'
 
@@ -12,13 +12,12 @@ import { getQuotaStats } from '@/lib/quotaMonitor'
    Shown near navbar when any API approaching quota limit
    ============================================================ */
 
-export function QuotaWarningBanner() {
-  const [stats,     setStats]     = useState<ReturnType<typeof getQuotaStats>>([])
-  const [dismissed, setDismissed] = useState(false)
+const emptySubscribe = () => () => {}
+const emptyStats: ReturnType<typeof getQuotaStats> = []
 
-  useEffect(() => {
-    setStats(getQuotaStats())
-  }, [])
+export function QuotaWarningBanner() {
+  const stats = useSyncExternalStore(emptySubscribe, () => getQuotaStats(), () => emptyStats)
+  const [dismissed, setDismissed] = useState(false)
 
   const warnings = stats.filter((s) => s.warning)
   if (warnings.length === 0 || dismissed) return null

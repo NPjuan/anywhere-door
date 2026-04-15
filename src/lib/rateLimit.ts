@@ -26,7 +26,9 @@ function getUpstashLimiter() {
   if (!url || !token) return null
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Redis }     = require('@upstash/redis')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Ratelimit } = require('@upstash/ratelimit')
     const redis = new Redis({ url, token })
     _upstashLimiter = new Ratelimit({

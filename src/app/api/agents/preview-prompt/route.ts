@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { getAIProvider } from '@/lib/agents/utils'
 import { POPULAR_CITIES } from '@/lib/cities'
+import { createLogger } from '@/lib/logger'
 
 export const maxDuration = 60
 
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
 
   const originCity = POPULAR_CITIES.find((c) => c.code === originCode)?.name ?? originCode
   const destCity   = POPULAR_CITIES.find((c) => c.code === destinationCode)?.name ?? destinationCode
+
+  const L = createLogger({ flow: 'preview-prompt' })
+  L.info('start', { originCity, destCity, startDate, endDate, model, hasFeedback: !!userPrompt })
 
   const days = startDate && endDate
     ? Math.max(1, Math.ceil(

@@ -8,6 +8,7 @@ import type { Activity, DayPlan } from '@/lib/agents/types';
 import type { DayWeather } from '@/lib/weather';
 import { RefineInput } from '@/components/form/RefineInput';
 import { getCurrencySymbol } from '@/lib/currency';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /* 呼吸灯样式 */
 const BREATHE_STYLE = `
@@ -54,6 +55,19 @@ interface DayTimelineProps {
 }
 
 export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = false, onActivityClick, weatherMap, activePOIId, onMapPin, onReplanDay, replanningDay, currency }: DayTimelineProps) {
+  const prefersReducedMotion = useReducedMotion()
+
+  // 反馈输入框状态（切换天时重置）
+  const safeActiveDay = (!dayPlans || dayPlans.length === 0) ? 0 : Math.max(0, Math.min(activeDay, dayPlans.length - 1));
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [prevDay, setPrevDay] = useState(safeActiveDay);
+  if (prevDay !== safeActiveDay) {
+    setPrevDay(safeActiveDay);
+    setShowFeedback(false);
+    setFeedback('');
+  }
+
   if (!dayPlans || !Array.isArray(dayPlans) || dayPlans.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-sm" style={{ color: '#94A3B8' }}>
@@ -62,15 +76,8 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
     );
   }
 
-  const safeActiveDay = Math.max(0, Math.min(activeDay, dayPlans.length - 1));
   const plan = dayPlans[safeActiveDay];
   if (!plan) return null;
-
-  // 反馈输入框状态（每次切换天时重置）
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedback, setFeedback] = useState('');
-  // 切换天时重置
-  useEffect(() => { setShowFeedback(false); setFeedback(''); }, [safeActiveDay]);
 
   const sections = [
     { label: '上午', labelEn: 'Morning',   activities: plan.morning   ?? [] },
@@ -110,7 +117,7 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
   return (
     <div className="flex flex-col gap-5">
       {/* 呼吸灯样式注入 */}
-      {refineMode && <style dangerouslySetInnerHTML={{ __html: BREATHE_STYLE }} />}
+      {refineMode && !prefersReducedMotion && <style dangerouslySetInnerHTML={{ __html: BREATHE_STYLE }} />}
 
       {/* Day 标签页 + 重新规划按钮同一行 */}
       <div className="flex items-center gap-1">
@@ -198,10 +205,10 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={safeActiveDay}
-          initial={{ opacity: 0, x: 8 }}
+          initial={prefersReducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 8 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -8 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
+          exit={prefersReducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.15, ease: 'easeOut' }}
           className="flex flex-col gap-4"
         >
           {/* 当天标题 */}
@@ -286,6 +293,7 @@ interface ActivityCardProps {
 }
 
 export function ActivityCard({ activity, refineMode = false, onClick, activePOIId, onMapPin }: ActivityCardProps) {
+  const prefersReducedMotion = useReducedMotion()
   const isClickable = !!onClick
   const poiId       = activity.poi?.id ?? activity.poi?.name
   const isActive    = !!poiId && poiId === activePOIId
@@ -294,7 +302,7 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
   // 地图驱动高亮时，滚动到可视区
   useEffect(() => {
     if (isActive && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      cardRef.current.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'nearest' })
     }
   }, [isActive])
 
@@ -322,8 +330,8 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
         cursor:       isClickable ? 'pointer' : undefined,
         transition:   'background 0.2s, border-color 0.2s',
       }}
-      whileHover={refineMode ? { backgroundColor: '#EFF6FF', scale: 1.005 } : {}}
-      whileTap={refineMode   ? { scale: 0.99 } : {}}
+      whileHover={prefersReducedMotion || !refineMode ? {} : { backgroundColor: '#EFF6FF', scale: 1.005 }}
+      whileTap={prefersReducedMotion || !refineMode ? {} : { scale: 0.99 }}
       tabIndex={isClickable ? 0 : undefined}
       role={isClickable ? 'button' : undefined}
       onKeyDown={(e) => {
@@ -418,12 +426,13 @@ interface FeedbackBoxProps {
 }
 
 function FeedbackBox({ dayPlan, feedback, setFeedback, onConfirm, onCancel }: FeedbackBoxProps) {
+  const prefersReducedMotion = useReducedMotion()
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      exit={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
     >
       <div className="flex flex-col gap-3 p-3 rounded-lg"
         style={{ background: '#F8FAFF', border: '1px solid #BFDBFE' }}>

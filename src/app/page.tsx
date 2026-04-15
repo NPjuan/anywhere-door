@@ -56,9 +56,7 @@ export default function HomePage() {
     goBack,
     pendingRestore,
     pendingRestoreStatus,
-    pendingRestorePlanId,
     confirmRestore,
-    dismissRestore,
   } = useHomeFlow();
 
   const { params, isValid } = useSearchStore();

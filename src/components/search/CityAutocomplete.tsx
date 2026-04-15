@@ -23,7 +23,8 @@ interface CityAutocompleteProps {
 export function CityAutocomplete({
   label, placeholder, value, onChange, error, id,
 }: CityAutocompleteProps) {
-  const inputId = id ?? React.useId()
+  const autoId = React.useId()
+  const inputId = id ?? autoId
   const [inputValue, setInputValue] = React.useState('')
 
   const query = value ? '' : inputValue

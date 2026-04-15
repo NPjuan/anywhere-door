@@ -2,12 +2,13 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { streamText } from 'ai'
-import { getAIProvider, getModelConfig, patchSystemForGLM, zodToExample } from '@/lib/agents/utils'
+import { getAIProvider, getModelConfig, patchSystemForGLM } from '@/lib/agents/utils'
 import type { AIProvider } from '@/lib/agents/utils'
 import { SYNTHESIS_SYSTEM_PROMPT } from '@/lib/agents/prompts'
 import { FullItinerarySchema } from '@/lib/agents/types'
 import { supabase } from '@/lib/supabase'
 import { parseJSON } from '@/lib/utils/jsonParse'
+import { createLogger } from '@/lib/logger'
 
 /* ── 行程后置校验与修复 ────────────────────────────────────────
    JSON parse 成功后，对结构和业务逻辑做兜底修复：
@@ -124,8 +125,11 @@ export async function POST(req: NextRequest) {
   }
 
   // 读取规划时选择的模型（独立列）
-  const { data: planData } = await supabase.from('plans').select('ai_model, planning_params').eq('id', planId).single()
+  const { data: planData } = await supabase.from('plans').select('ai_model, planning_params, device_id').eq('id', planId).single()
   const savedModel = (planData?.ai_model ?? (planData?.planning_params as Record<string, unknown> | null)?.model) as AIProvider | undefined
+  const deviceId = planData?.device_id as string | undefined
+
+  const L = createLogger({ deviceId, planId, flow: 'synthesis' })
 
   const {
     originCity, destCity, startDate, endDate, days, prompt,
@@ -252,6 +256,7 @@ export async function POST(req: NextRequest) {
         const cfg = getModelConfig(savedModel)
         const isGLM = savedModel?.startsWith('glm') ?? false
         console.log(JSON.stringify({ event: 'synthesis-start', planId, model: savedModel ?? 'deepseek', isGLM }))
+        L.info('start', { model: savedModel ?? 'deepseek', isGLM, days, originCity, destCity })
         const fullSystem = isGLM
           ? patchSystemForGLM(SYNTHESIS_SYSTEM_PROMPT, FullItinerarySchema)
           : SYNTHESIS_SYSTEM_PROMPT
@@ -281,6 +286,7 @@ ${agentDataSection}${poiCoordsSection}
         }
 
         console.log(JSON.stringify({ event: 'synthesis-stream-done', planId, chars: accumulated.length, ms: Date.now() - synthT0 }))
+        L.info('ai-response', { ms: Date.now() - synthT0, chars: accumulated.length, first200: accumulated.slice(0, 200), last200: accumulated.slice(-200) })
 
         // 流结束，解析 JSON 并写 DB
         let parsed = parseJSON<Record<string, unknown>>(accumulated)
@@ -292,14 +298,17 @@ ${agentDataSection}${poiCoordsSection}
             first500: accumulated.slice(0, 500),
             last500:  accumulated.slice(-500),
           }))
+          L.error('parse-failed', { chars: accumulated.length, first500: accumulated.slice(0, 500), last500: accumulated.slice(-500), rawOutput: accumulated })
           throw new Error('JSON parse failed')
         }
 
         console.log(JSON.stringify({ event: 'synthesis-parse-ok', planId, title: parsed.title, days: Array.isArray(parsed.days) ? parsed.days.length : 0 }))
+        L.info('parse-ok', { title: parsed.title as string, daysCount: Array.isArray(parsed.days) ? parsed.days.length : 0 })
 
         // 后置校验：修复 days 长度、日期连续性、重复景点
         parsed = validateAndRepairItinerary(parsed, startDate, days)
         console.log(JSON.stringify({ event: 'synthesis-validated', planId, days: (parsed.days as unknown[]).length }))
+        L.info('validated', { daysCount: (parsed.days as unknown[]).length })
 
         // 规范化 budget 字段
         const rawBudget = parsed.budget as Record<string, unknown> | null | undefined
@@ -354,10 +363,12 @@ ${agentDataSection}${poiCoordsSection}
           // planning_params 保留不清空，供调试查看完整 enriched prompt
         }).eq('id', planId)
         console.log(JSON.stringify({ event: 'synthesis-saved', planId, ms: Date.now() - synthT0 }))
+        L.info('done', { ms: Date.now() - synthT0, title: parsed.title as string, budgetLow, budgetHigh })
 
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err)
         console.error(JSON.stringify({ event: 'synthesis-error', planId, error: errMsg, ms: Date.now() - synthT0, rawChars: accumulated.length }))
+        L.error('failed', { error: errMsg, ms: Date.now() - synthT0, rawChars: accumulated.length, rawOutput: accumulated || null })
 
         // 保存错误详情 + 原始 AI 输出到 DB，方便排查 JSON parse 失败
         const errProg = {

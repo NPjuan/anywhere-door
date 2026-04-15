@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { runPoiAgent, runRoutePlanAgent, runContentAgent, runXhsAgent } from '@/lib/agents/runners'
 import { rateLimit } from '@/lib/rateLimit'
 import type { AIProvider } from '@/lib/agents/utils'
+import { createLogger } from '@/lib/logger'
 
 /* ============================================================
    POST /api/agents/orchestrate-bg
@@ -42,8 +43,13 @@ async function runPlanningInBackground(
     ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
     : 3
 
+  // 获取 deviceId 用于日志
+  const { data: planRow } = await supabase.from('plans').select('device_id').eq('id', planId).single()
+  const L = createLogger({ deviceId: planRow?.device_id ?? undefined, planId, flow: 'orchestrate' })
+
   const t0 = Date.now()
   console.log(JSON.stringify({ event: 'orchestrate-start', planId, model: model ?? 'deepseek', destCity, days }))
+  L.info('start', { model: model ?? 'deepseek', destCity, originCity, days, promptLength: prompt.length })
 
   const results: Record<string, unknown> = {}
   const progress: Record<string, { status: string; preview: string; input?: unknown }> = {
@@ -96,10 +102,12 @@ async function runPlanningInBackground(
   })
     .then(result => {
       results.poi = result
+      L.info('poi-done', { poiCount: (result as { pois?: unknown[] })?.pois?.length ?? 0 })
       return updateProgress('poi', { status: 'done', preview: makePreview('poi', result) })
     })
     .catch(async err => {
       console.error('[orchestrate-bg] poi failed:', err)
+      L.error('poi-failed', { error: err instanceof Error ? err.message : String(err) })
       await updateProgress('poi', { status: 'error', preview: '' })
     })
 
@@ -125,10 +133,12 @@ async function runPlanningInBackground(
     })
       .then(result => {
         results.route = result
+        L.info('route-done', { routeDays: (result as { days?: unknown[] })?.days?.length ?? 0 })
         return updateProgress('route', { status: 'done', preview: makePreview('route', result) })
       })
       .catch(async err => {
         console.error('[orchestrate-bg] route failed:', err)
+        L.error('route-failed', { error: err instanceof Error ? err.message : String(err) })
         await updateProgress('route', { status: 'error', preview: '' })
       }),
 
@@ -144,10 +154,12 @@ async function runPlanningInBackground(
     })
       .then(result => {
         results.tips = result
+        L.info('tips-done', { tipsCount: (result as { packingTips?: unknown[] })?.packingTips?.length ?? 0 })
         return updateProgress('tips', { status: 'done', preview: makePreview('tips', result) })
       })
       .catch(async err => {
         console.error('[orchestrate-bg] tips failed:', err)
+        L.error('tips-failed', { error: err instanceof Error ? err.message : String(err) })
         await updateProgress('tips', { status: 'error', preview: '' })
       }),
 
@@ -163,10 +175,12 @@ async function runPlanningInBackground(
     })
       .then(result => {
         results.xhs = result
+        L.info('xhs-done', { notesCount: (result as { notes?: unknown[] })?.notes?.length ?? 0 })
         return updateProgress('xhs', { status: 'done', preview: makePreview('xhs', result) })
       })
       .catch(async err => {
         console.error('[orchestrate-bg] xhs failed:', err)
+        L.error('xhs-failed', { error: err instanceof Error ? err.message : String(err) })
         await updateProgress('xhs', { status: 'error', preview: '' })
       }),
   ])
@@ -174,6 +188,7 @@ async function runPlanningInBackground(
   /* ── 阶段三：route 完成，触发 synthesis（不等 tips/xhs）── */
   await triggerSynthesis()
   console.log(JSON.stringify({ event: 'orchestrate-done', planId, ms: Date.now() - t0 }))
+  L.info('done', { ms: Date.now() - t0, agentStatuses: Object.fromEntries(Object.entries(progress).map(([k, v]) => [k, v.status])) })
 }
 
 export async function POST(req: NextRequest) {

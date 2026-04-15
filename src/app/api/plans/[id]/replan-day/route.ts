@@ -4,6 +4,7 @@ import { streamText } from 'ai'
 import { getAIProvider, getModelConfig } from '@/lib/agents/utils'
 import type { AIProvider } from '@/lib/agents/utils'
 import { parseJSON } from '@/lib/utils/jsonParse'
+import { createLogger } from '@/lib/logger'
 
 /* ============================================================
    POST /api/plans/[id]/replan-day
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'dayIndex and deviceId required' }, { status: 400 })
   }
 
+  const L = createLogger({ deviceId, planId: id, flow: 'replan-day' })
+  L.info('start', { dayIndex, feedback: feedback || null })
+
   // 读取计划
   const { data, error } = await supabase
     .from('plans')
@@ -33,9 +37,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single()
 
   if (error || !data) {
+    L.warn('plan-not-found', { error: error?.message })
     return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
   }
   if (data.device_id !== deviceId) {
+    L.warn('forbidden', { ownerDeviceId: data.device_id })
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -117,6 +123,16 @@ ${feedback ? `用户反馈（请优先参考）：${feedback}` : '请生成一�
 
   try {
     const cfg = getModelConfig(savedModel)
+    L.info('ai-call', {
+      model: savedModel,
+      temperature: cfg.temperature,
+      maxOutputTokens: cfg.maxOutputTokens ?? 4000,
+      otherDayPOICount: otherDayPOIs.split('、').filter(Boolean).length,
+      currentPOICount: currentActs.length,
+      promptLength: userMessage.length,
+    })
+
+    const t0 = Date.now()
     const result = streamText({
       model:           getAIProvider(savedModel),
       temperature:     cfg.temperature,
@@ -130,16 +146,31 @@ ${feedback ? `用户反馈（请优先参考）：${feedback}` : '请生成一�
       accumulated += chunk
     }
 
+    const aiMs = Date.now() - t0
+    L.info('ai-response', {
+      ms: aiMs,
+      chars: accumulated.length,
+      first200: accumulated.slice(0, 200),
+      last200: accumulated.slice(-200),
+    })
+
     const parsed = parseJSON<Record<string, unknown>>(accumulated)
     if (!parsed) {
-      console.error(JSON.stringify({
-        event: 'replan-day-parse-failed', planId: id, dayIndex,
+      L.error('parse-failed', {
         chars: accumulated.length,
         first500: accumulated.slice(0, 500),
         last500:  accumulated.slice(-500),
-      }))
+        rawOutput: accumulated,
+      })
       return NextResponse.json({ error: 'AI output parse failed', raw_preview: accumulated.slice(0, 300) }, { status: 500 })
     }
+
+    L.info('parse-ok', {
+      title: parsed.title,
+      morningCount:   Array.isArray(parsed.morning)   ? parsed.morning.length   : 0,
+      afternoonCount: Array.isArray(parsed.afternoon) ? parsed.afternoon.length : 0,
+      eveningCount:   Array.isArray(parsed.evening)   ? parsed.evening.length   : 0,
+    })
 
     // 强制回填 day 和 date
     parsed.day  = (targetDay.day  as number) ?? dayIndex + 1
@@ -161,11 +192,16 @@ ${feedback ? `用户反馈（请优先参考）：${feedback}` : '请生成一�
       .update({ itinerary: newItinerary })
       .eq('id', id)
 
-    if (updateError) throw updateError
+    if (updateError) {
+      L.error('db-update-failed', { error: updateError.message })
+      throw updateError
+    }
 
+    L.info('done', { dayIndex, newTitle: parsed.title })
     return NextResponse.json({ day: parsed, dayIndex })
   } catch (err) {
-    console.error('[replan-day]', err)
+    const errMsg = err instanceof Error ? err.message : String(err)
+    L.error('failed', { error: errMsg, stack: err instanceof Error ? err.stack : undefined })
     return NextResponse.json({ error: 'Replan failed' }, { status: 500 })
   }
 }

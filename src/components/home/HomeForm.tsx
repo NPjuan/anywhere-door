@@ -117,7 +117,7 @@ export const HomeForm = memo(
       [setPrompt]
     );
     const handlePresetClick = useCallback(
-      (label: string, prompt: string) => {
+      (label: string, _prompt: string) => {
         // 根据当前 prompt 反推已选的 labels
         const currentSelected = PRESETS.filter(p => params.prompt.includes(p.prompt)).map(p => p.label)
         const isSelected = (currentSelected as string[]).includes(label)

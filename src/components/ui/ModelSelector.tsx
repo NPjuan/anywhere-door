@@ -18,6 +18,34 @@ export function ModelSelector() {
 
   const current = MODELS.find(m => m.value === aiModel) ?? MODELS[0]
 
+  // 初始化：从 localStorage 恢复
+  useEffect(() => {
+    if (MODELS.length <= 1) return
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved && MODELS.some(m => m.value === saved)) {
+      setAiModel(saved as Parameters<typeof setAiModel>[0])
+    }
+  }, [setAiModel])
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (MODELS.length <= 1) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // 选择时持久化
+  const handleSelect = (value: Parameters<typeof setAiModel>[0]) => {
+    setAiModel(value)
+    localStorage.setItem(STORAGE_KEY, value)
+    setOpen(false)
+  }
+
   // 只有一个模型时，只展示当前模型名，不可切换
   if (MODELS.length <= 1) {
     return (
@@ -37,31 +65,6 @@ export function ModelSelector() {
       </div>
     )
   }
-
-  // 初始化：从 localStorage 恢复
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved && MODELS.some(m => m.value === saved)) {
-      setAiModel(saved as Parameters<typeof setAiModel>[0])
-    }
-  }, [setAiModel])
-
-  // 选择时持久化
-  const handleSelect = (value: Parameters<typeof setAiModel>[0]) => {
-    setAiModel(value)
-    localStorage.setItem(STORAGE_KEY, value)
-    setOpen(false)
-  }
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>

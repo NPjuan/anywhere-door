@@ -300,7 +300,8 @@ export function RouteMap({ dayPlan, activePOIId, onMarkerClick }: RouteMapProps)
       destroyed = true
       amapMkRef.current = []
       infoWinRef.current = null
-      for (const k in poiIndexMapRef.current) delete poiIndexMapRef.current[k]
+      const poiMap = poiIndexMapRef.current
+      for (const k in poiMap) delete poiMap[k]
       if (drivingRef.current) { drivingRef.current.clear(); drivingRef.current = null }
       if (amapRef.current)    { amapRef.current.destroy();  amapRef.current = null }
       setIsLoaded(false)
@@ -396,7 +397,8 @@ export function RouteMap({ dayPlan, activePOIId, onMarkerClick }: RouteMapProps)
       destroyed = true
       lfMkRef.current = []
       lfPolyRef.current = null
-      for (const k in poiIndexMapRef.current) delete poiIndexMapRef.current[k]
+      const poiMap = poiIndexMapRef.current
+      for (const k in poiMap) delete poiMap[k]
       if (lfMapRef.current) { lfMapRef.current.remove(); lfMapRef.current = null }
       setIsLoaded(false)
     }

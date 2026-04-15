@@ -143,7 +143,6 @@ export const PoweredByName = memo(({ mode }: Props) => {
   const counterRef    = useRef(0)
   const containerRef  = useRef<HTMLSpanElement>(null)
   const letterRefs    = useRef<(HTMLSpanElement | null)[]>([])
-  const tonePartsRef  = useRef<{ dispose: () => void }[]>([])  // 保留以防万一，不再主动使用
   const letterCycleRef = useRef(0)
 
   const spawnNote = useCallback((li: number) => {
