@@ -186,6 +186,8 @@ export default function HomePage() {
       originAirportCode: params.origin!.selectedAirportCode,
       destAirportName: params.destination!.selectedAirportName,
       destAirportCode: params.destination!.selectedAirportCode,
+      originStationName: params.origin!.selectedStationName,
+      destStationName: params.destination!.selectedStationName,
       arrivalTime: params.arrivalTime || undefined,
       departureTime: params.departureTime || undefined,
       travelers: params.travelers ?? 1,
@@ -196,21 +198,30 @@ export default function HomePage() {
   const handleConfirm = () => {
     if (!params.origin || !params.destination || !finalPrompt.trim()) return;
 
-    const airportHint = [
-      params.origin.selectedAirportName &&
-        `出发机场：${params.origin.selectedAirportName}（${params.origin.selectedAirportCode}）`,
-      params.destination.selectedAirportName &&
-        `抵达机场：${params.destination.selectedAirportName}（${params.destination.selectedAirportCode}）`,
+    const transportHint = [
+      params.origin.selectedStationName
+        ? `出发高铁站：${params.origin.selectedStationName}`
+        : params.origin.selectedAirportName
+          ? `出发机场：${params.origin.selectedAirportName}（${params.origin.selectedAirportCode}）`
+          : null,
+      params.destination.selectedStationName
+        ? `抵达高铁站：${params.destination.selectedStationName}`
+        : params.destination.selectedAirportName
+          ? `抵达机场：${params.destination.selectedAirportName}（${params.destination.selectedAirportCode}）`
+          : null,
     ]
       .filter(Boolean)
       .join('；');
 
+    const isTrainTrip = !!(params.origin.selectedStationName || params.destination.selectedStationName);
+    const transportLabel = isTrainTrip ? '高铁站' : '机场';
+
     const extras = [
-      airportHint && `[机场] ${airportHint}，请将机场作为行程起止 POI 纳入规划`,
+      transportHint && `[交通] ${transportHint}，请将${transportLabel}作为行程起止 POI 纳入规划`,
       params.arrivalTime &&
-        `[落地时间] 第一天落地时间为 ${params.arrivalTime}，请从该时间点开始规划当天行程`,
+        `[到达时间] 第一天到达时间为 ${params.arrivalTime}，请从该时间点开始规划当天行程`,
       params.departureTime &&
-        `[返程时间] 最后一天返程起飞时间为 ${params.departureTime}，请确保行程在此前结束并预留前往机场的时间`,
+        `[返程时间] 最后一天返程出发时间为 ${params.departureTime}，请确保行程在此前结束并预留前往${transportLabel}的时间`,
       (params.travelers ?? 1) > 1 &&
         `[人数] 共 ${params.travelers} 人出行，请据此调整住宿、餐厅和活动容量`,
       params.hotelPOI &&
@@ -230,8 +241,8 @@ export default function HomePage() {
     const enrichedPrompt = extras ? `${finalPrompt}\n\n${extras}` : finalPrompt;
 
     startPlanning({
-      originCode: params.origin.selectedAirportCode ?? params.origin.code,
-      destinationCode: params.destination.code,
+      originCode: params.origin.selectedAirportCode ?? (params.origin.code || params.origin.name),
+      destinationCode: params.destination.code || params.destination.name,
       startDate: params.startDate,
       endDate: params.endDate,
       finalPrompt: enrichedPrompt,
@@ -264,8 +275,8 @@ export default function HomePage() {
     setShowRefine(false);
     setRefineFeedback('');
     startPlanning({
-      originCode: params.origin.selectedAirportCode ?? params.origin.code,
-      destinationCode: params.destination.code,
+      originCode: params.origin.selectedAirportCode ?? (params.origin.code || params.origin.name),
+      destinationCode: params.destination.code || params.destination.name,
       startDate: params.startDate,
       endDate: params.endDate,
       finalPrompt: refinePrompt,

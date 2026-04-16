@@ -13,6 +13,7 @@ export interface CityOption {
   country: string;
   selectedAirportCode?: string;
   selectedAirportName?: string;
+  selectedStationName?: string;   // 高铁站名，如 '北京南站'
 }
 
 export interface PlacePOI {
@@ -107,7 +108,8 @@ export const useSearchStore = create<SearchStore>()((set, get) => ({
   isValid: () => {
     const { origin, destination, startDate } = get().params;
     if (!origin || !destination) return false;
-    if (origin.code === destination.code) return false;
+    // 用城市名判断是否同城（兼容无机场城市 code 为空的情况）
+    if (origin.name === destination.name) return false;
     if (!startDate) return false;
     return true;
   },

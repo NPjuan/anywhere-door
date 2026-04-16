@@ -11,7 +11,7 @@ import {
   Select,
   InputNumber,
 } from 'antd';
-import { searchCities, getAirportsByCity } from '@/lib/cities';
+import { searchCities, getAirportsByCity, getTrainStationsByCity } from '@/lib/cities';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import locale from 'antd/locale/zh_CN';
@@ -258,6 +258,7 @@ export const HomeForm = memo(
                   departureTime={params.departureTime}
                   onArrivalTimeChange={setArrivalTime}
                   onDepartureTimeChange={setDepartureTime}
+                  isTrainTrip={!!(params.origin?.selectedStationName || params.destination?.selectedStationName)}
                 />
               </div>
 
@@ -584,14 +585,34 @@ const CityField = memo(
 
     const airportOptions = value
       ? getAirportsByCity(value.name).map((a) => ({
-          value: a.code,
+          value: `airport:${a.code}`,
           label: `${a.airport}（${a.code}）`,
         }))
       : [];
-    const multiAirport = airportOptions.length > 1;
+
+    const stationOptions = value
+      ? getTrainStationsByCity(value.name).map((s) => ({
+          value: `train:${s}`,
+          label: s,
+        }))
+      : [];
+
+    // 国内城市合并机场+高铁选项
+    const isDomestic = value && (value.country === '中国' || value.country === '中国香港' || value.country === '中国台湾');
+    const transportOptions = isDomestic
+      ? [...airportOptions, ...stationOptions]
+      : airportOptions;
+
+    // 当前已选的值（兼容机场和高铁站）
+    const selectedTransportValue = value?.selectedStationName
+      ? `train:${value.selectedStationName}`
+      : value?.selectedAirportCode
+        ? `airport:${value.selectedAirportCode}`
+        : null;
 
     const cityOptions = candidates.map((r) => ({
-      value: r.city.code,
+      // 用 code 作为 value；无机场城市加 "city:" 前缀，避免与 AutoComplete 显示值（城市名）冲突
+      value: r.city.code || `city:${r.city.name}`,
       label: (
         <div className="flex items-center gap-2.5 py-0.5">
           <div className="min-w-0">
@@ -618,15 +639,16 @@ const CityField = memo(
         <AutoComplete
           id={uid}
           value={value ? value.name : inputVal}
-          options={cityOptions}
-          onSelect={(code: string) => {
+          options={value ? [] : cityOptions}
+          onSelect={(codeOrName: string) => {
             const results = searchCities(inputVal);
-            const found = results.find((r) => r.city.code === code);
+            const found = results.find((r) => (r.city.code || `city:${r.city.name}`) === codeOrName);
             if (found) {
               onChange({
                 ...found.city,
                 selectedAirportCode: undefined,
                 selectedAirportName: undefined,
+                selectedStationName: undefined,
               });
               setInputVal('');
             }
@@ -658,20 +680,20 @@ const CityField = memo(
           }}
         />
 
-        {value &&
-          airportOptions.length > 0 &&
-          (multiAirport ? (
+        {value && transportOptions.length > 0 && (
             <Select
-              value={value.selectedAirportCode ?? null}
-              options={airportOptions}
-              onChange={(code: string | null) => {
-                if (!code) {
+              value={selectedTransportValue}
+              options={transportOptions}
+              onChange={(val: string | null) => {
+                if (!val) {
                   onChange({
                     ...value,
                     selectedAirportCode: undefined,
                     selectedAirportName: undefined,
+                    selectedStationName: undefined,
                   });
-                } else {
+                } else if (val.startsWith('airport:')) {
+                  const code = val.slice(8);
                   const airport = getAirportsByCity(value.name).find(
                     (a) => a.code === code
                   );
@@ -679,10 +701,19 @@ const CityField = memo(
                     ...value,
                     selectedAirportCode: code,
                     selectedAirportName: airport?.airport,
+                    selectedStationName: undefined,
+                  });
+                } else if (val.startsWith('train:')) {
+                  const station = val.slice(6);
+                  onChange({
+                    ...value,
+                    selectedAirportCode: undefined,
+                    selectedAirportName: undefined,
+                    selectedStationName: station,
                   });
                 }
               }}
-              placeholder="选择机场（选填）"
+              placeholder={`选择${isDomestic && stationOptions.length > 0 ? '机场/高铁站' : '机场'}（选填）`}
               allowClear
               size="small"
               variant="borderless"
@@ -697,15 +728,7 @@ const CityField = memo(
                 },
               }}
             />
-          ) : (
-            <div
-              className="mt-1 flex items-center gap-1.5 text-xs"
-              style={{ color: '#9CA3AF', paddingLeft: 2 }}
-            >
-              <span style={{ color: '#CBD5E1' }}>✈</span>
-              {airportOptions[0].label}
-            </div>
-          ))}
+          )}
       </div>
     );
   },
@@ -715,8 +738,11 @@ const CityField = memo(
       prevProps.label === nextProps.label &&
       prevProps.placeholder === nextProps.placeholder &&
       prevProps.value?.code === nextProps.value?.code &&
+      prevProps.value?.name === nextProps.value?.name &&
       prevProps.value?.selectedAirportCode ===
         nextProps.value?.selectedAirportCode &&
+      prevProps.value?.selectedStationName ===
+        nextProps.value?.selectedStationName &&
       prevProps.onChange === nextProps.onChange
     );
   }
@@ -733,6 +759,7 @@ const DateField = memo(
     departureTime,
     onArrivalTimeChange,
     onDepartureTimeChange,
+    isTrainTrip,
   }: {
     startDate: string;
     endDate: string;
@@ -741,6 +768,7 @@ const DateField = memo(
     departureTime: string;
     onArrivalTimeChange: (t: string) => void;
     onDepartureTimeChange: (t: string) => void;
+    isTrainTrip: boolean;
   }) => {
     const timePickerShared = {
       format: 'HH:mm',
@@ -785,33 +813,23 @@ const DateField = memo(
             height: 32,
           }}
         />
-        {/* 落地时间 + 返程时间 — 同一行，高度与机场选项对齐 */}
+        {/* 到达时间 + 返程时间 */}
         <div
           className="mt-1 flex items-center gap-1"
           style={{ paddingLeft: 2, height: 24 }}
         >
-          <span style={{ color: '#CBD5E1', fontSize: 11 }}>✈</span>          <TimePicker
+          <TimePicker
             {...timePickerShared}
             value={arrivalTime ? dayjs(arrivalTime, 'HH:mm') : null}
             onChange={(t) => onArrivalTimeChange(t ? t.format('HH:mm') : '')}
-            placeholder="预计落地时间"
+            placeholder={isTrainTrip ? '预计到达时间' : '预计落地时间'}
             style={{ width: '50%', height: 24 }}
           />
-          <span
-            style={{
-              color: '#CBD5E1',
-              fontSize: 11,
-              transform: 'scaleX(-1)',
-              display: 'inline-block',
-            }}
-          >
-            ✈
-          </span>
           <TimePicker
             {...timePickerShared}
             value={departureTime ? dayjs(departureTime, 'HH:mm') : null}
             onChange={(t) => onDepartureTimeChange(t ? t.format('HH:mm') : '')}
-            placeholder="预计起飞时间"
+            placeholder={isTrainTrip ? '预计返程时间' : '预计起飞时间'}
             style={{ width: '50%', height: 24 }}
           />
         </div>
@@ -824,6 +842,7 @@ const DateField = memo(
       prevProps.endDate === nextProps.endDate &&
       prevProps.arrivalTime === nextProps.arrivalTime &&
       prevProps.departureTime === nextProps.departureTime &&
+      prevProps.isTrainTrip === nextProps.isTrainTrip &&
       prevProps.onChange === nextProps.onChange &&
       prevProps.onArrivalTimeChange === nextProps.onArrivalTimeChange &&
       prevProps.onDepartureTimeChange === nextProps.onDepartureTimeChange

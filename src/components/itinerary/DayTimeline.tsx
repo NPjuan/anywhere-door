@@ -138,7 +138,6 @@ export function DayTimeline({ dayPlans, activeDay, onDayChange, refineMode = fal
                   color:        i === safeActiveDay ? '#FFFFFF'  : '#94A3B8',
                   borderRadius: 8,
                   minWidth:     64,
-                  minHeight:    44,
                 }}
               >
                 <span>Day {i + 1}</span>
@@ -294,9 +293,10 @@ interface ActivityCardProps {
 
 export function ActivityCard({ activity, refineMode = false, onClick, activePOIId, onMapPin }: ActivityCardProps) {
   const prefersReducedMotion = useReducedMotion()
-  const isClickable = !!onClick
   const poiId       = activity.poi?.id ?? activity.poi?.name
   const isActive    = !!poiId && poiId === activePOIId
+  const hasMapPin   = !!poiId && !!activity.poi?.latLng && !!onMapPin
+  const isClickable = !!onClick || hasMapPin
   const cardRef     = useRef<HTMLDivElement>(null)
 
   // 地图驱动高亮时，滚动到可视区
@@ -318,6 +318,11 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
     return parts.join('')
   })()
 
+  const handleClick = () => {
+    if (onClick) { onClick(); return }
+    if (hasMapPin) onMapPin!(poiId!)
+  }
+
   return (
     <motion.div
       ref={cardRef}
@@ -330,19 +335,19 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
         cursor:       isClickable ? 'pointer' : undefined,
         transition:   'background 0.2s, border-color 0.2s',
       }}
-      whileHover={prefersReducedMotion || !refineMode ? {} : { backgroundColor: '#EFF6FF', scale: 1.005 }}
-      whileTap={prefersReducedMotion || !refineMode ? {} : { scale: 0.99 }}
+      whileHover={prefersReducedMotion || !isClickable ? {} : { backgroundColor: '#EFF6FF', scale: 1.005 }}
+      whileTap={prefersReducedMotion || !isClickable ? {} : { scale: 0.99 }}
       tabIndex={isClickable ? 0 : undefined}
       role={isClickable ? 'button' : undefined}
       onKeyDown={(e) => {
         if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
-          onClick?.()
+          handleClick()
         }
       }}
-      onClick={() => onClick?.()}
+      onClick={isClickable ? handleClick : undefined}
     >
-      {/* 时间 + 名称 + 定位按钮 */}
+      {/* 时间 + 名称 */}
       <div className="flex items-baseline gap-2.5 mb-1.5">
         <span className="text-xs font-mono tabular-nums" style={{ color: '#2563EB', flexShrink: 0 }}>
           {activity.time}
@@ -350,32 +355,9 @@ export function ActivityCard({ activity, refineMode = false, onClick, activePOII
         <h4 className="text-sm font-semibold leading-snug flex-1" style={{ color: '#0F172A' }}>
           {activity.name}
         </h4>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* 定位按钮：有 POI 坐标才显示 */}
-          {poiId && activity.poi?.latLng && onMapPin && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onMapPin(poiId) }}
-              title="在地图上查看"
-              className="flex items-center justify-center w-5 h-5 rounded cursor-pointer transition-colors"
-              style={{
-                background:  isActive ? '#2563EB' : 'transparent',
-                border:      `1px solid ${isActive ? '#2563EB' : '#E2E8F0'}`,
-                color:       isActive ? '#FFFFFF' : '#94A3B8',
-                flexShrink:  0,
-                minWidth:    44,
-                minHeight:   44,
-                display:     'flex',
-                alignItems:  'center',
-                justifyContent: 'center',
-              }}
-            >
-              <MapPin size={10} />
-            </button>
-          )}
-          {refineMode && (
-            <span className="text-xs" style={{ color: '#94A3B8' }}>@ 引用</span>
-          )}
-        </div>
+        {refineMode && (
+          <span className="text-xs shrink-0" style={{ color: '#94A3B8' }}>@ 引用</span>
+        )}
       </div>
 
       {/* 描述 */}

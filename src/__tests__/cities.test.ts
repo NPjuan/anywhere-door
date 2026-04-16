@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findCityByCode, searchCities, getAirportsByCity, POPULAR_CITIES } from '@/lib/cities'
+import { findCityByCode, searchCities, getAirportsByCity, getTrainStationsByCity, POPULAR_CITIES, TRAIN_STATIONS } from '@/lib/cities'
 
 describe('findCityByCode', () => {
   it('找到存在的城市', () => {
@@ -78,6 +78,14 @@ describe('searchCities', () => {
     expect(results).toEqual([])
   })
 
+  it('搜索无机场城市（苏州）能正确返回', () => {
+    const results = searchCities('苏州')
+    expect(results.length).toBeGreaterThan(0)
+    expect(results[0].label).toBe('苏州')
+    expect(results[0].city.name).toBe('苏州')
+    expect(results[0].city.nameEn).toBe('Suzhou')
+  })
+
   it('大小写不敏感', () => {
     const lower = searchCities('beijing')
     const upper = searchCities('BEIJING')
@@ -102,18 +110,75 @@ describe('getAirportsByCity', () => {
     expect(codes).toContain('HND')
   })
 
+  it('无机场城市不返回机场', () => {
+    const airports = getAirportsByCity('苏州')
+    expect(airports).toEqual([])
+  })
+
   it('不存在的城市返回空数组', () => {
     expect(getAirportsByCity('不存在城市')).toEqual([])
+  })
+})
+
+describe('getTrainStationsByCity', () => {
+  it('北京有多个高铁站', () => {
+    const stations = getTrainStationsByCity('北京')
+    expect(stations.length).toBeGreaterThanOrEqual(2)
+    expect(stations).toContain('北京南站')
+    expect(stations).toContain('北京西站')
+  })
+
+  it('苏州有高铁站（无机场城市）', () => {
+    const stations = getTrainStationsByCity('苏州')
+    expect(stations.length).toBeGreaterThanOrEqual(1)
+    expect(stations).toContain('苏州北站')
+  })
+
+  it('拉萨无高铁站', () => {
+    const stations = getTrainStationsByCity('拉萨')
+    expect(stations).toEqual([])
+  })
+
+  it('国外城市无高铁站', () => {
+    const stations = getTrainStationsByCity('东京')
+    expect(stations).toEqual([])
+  })
+
+  it('不存在的城市返回空数组', () => {
+    expect(getTrainStationsByCity('不存在城市')).toEqual([])
+  })
+})
+
+describe('TRAIN_STATIONS 数据完整性', () => {
+  it('所有高铁站城市都在 POPULAR_CITIES 中', () => {
+    const cityNames = new Set(POPULAR_CITIES.map(c => c.name))
+    for (const city of Object.keys(TRAIN_STATIONS)) {
+      expect(cityNames.has(city)).toBe(true)
+    }
+  })
+
+  it('每个高铁站名不为空', () => {
+    for (const [city, stations] of Object.entries(TRAIN_STATIONS)) {
+      expect(stations.length).toBeGreaterThan(0)
+      for (const s of stations) {
+        expect(s).toBeTruthy()
+        expect(s.includes('站')).toBe(true)
+      }
+    }
   })
 })
 
 describe('POPULAR_CITIES 数据完整性', () => {
   it('每个城市都有必要字段', () => {
     for (const city of POPULAR_CITIES) {
-      expect(city.code).toBeTruthy()
+      // code 和 airport 可以为空（无机场城市）
+      expect(typeof city.code).toBe('string')
       expect(city.name).toBeTruthy()
       expect(city.nameEn).toBeTruthy()
-      expect(city.airport).toBeTruthy()
+      expect(typeof city.airport).toBe('string')
+      // 有 code 时必须有 airport，反之亦然
+      if (city.code) expect(city.airport).toBeTruthy()
+      if (city.airport) expect(city.code).toBeTruthy()
     }
   })
 

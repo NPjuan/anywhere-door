@@ -13,6 +13,10 @@ interface ExportButtonProps {
   planId?: string | null
   /** 追加在按钮行末尾的额外节点（如公开按钮）*/
   extra?: ReactNode
+  /** 当前激活天（与 DayTimeline 同源），不传则读 store */
+  activeDay?: number
+  /** 切换天的回调（与 DayTimeline 同源），不传则用 store */
+  setActiveDay?: (i: number) => void
 }
 
 const BTN: React.CSSProperties = {
@@ -31,7 +35,7 @@ const BTN: React.CSSProperties = {
   transition:   'background 0.15s',
 }
 
-export function ExportButton({ itinerary, planId: planIdProp, extra }: ExportButtonProps) {
+export function ExportButton({ itinerary, planId: planIdProp, extra, activeDay: activeDayProp, setActiveDay: setActiveDayProp }: ExportButtonProps) {
   const [copied,      setCopied]      = useState(false)
   const [linkCopied,  setLinkCopied]  = useState(false)
   const [showDl,      setShowDl]      = useState(false)
@@ -39,8 +43,10 @@ export function ExportButton({ itinerary, planId: planIdProp, extra }: ExportBut
   const dlRef  = useRef<HTMLDivElement>(null)
   const planIdFromStore = useItineraryStore((s) => s.planId)
   const planId     = planIdProp ?? planIdFromStore
-  const activeDay  = useItineraryStore((s) => s.activeDay)
-  const setActiveDay = useItineraryStore((s) => s.setActiveDay)
+  const activeDayFromStore  = useItineraryStore((s) => s.activeDay)
+  const setActiveDayFromStore = useItineraryStore((s) => s.setActiveDay)
+  const activeDay    = activeDayProp ?? activeDayFromStore
+  const setActiveDay = setActiveDayProp ?? setActiveDayFromStore
 
   /* 关闭下拉 */
   useEffect(() => {

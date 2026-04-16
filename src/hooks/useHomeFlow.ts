@@ -898,6 +898,8 @@ export function useHomeFlow() {
       originAirportCode?: string;
       destAirportName?: string;
       destAirportCode?: string;
+      originStationName?: string;
+      destStationName?: string;
       arrivalTime?: string;
       departureTime?: string;
       travelers?: number;

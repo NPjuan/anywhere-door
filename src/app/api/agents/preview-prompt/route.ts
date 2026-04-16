@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     originAirportCode,
     destAirportName,
     destAirportCode,
+    originStationName,
+    destStationName,
     arrivalTime,
     departureTime,
     travelers,
@@ -33,8 +35,12 @@ export async function POST(req: NextRequest) {
     model,
   } = await req.json()
 
-  const originCity = POPULAR_CITIES.find((c) => c.code === originCode)?.name ?? originCode
-  const destCity   = POPULAR_CITIES.find((c) => c.code === destinationCode)?.name ?? destinationCode
+  const originCity = originCode
+    ? (POPULAR_CITIES.find((c) => c.code === originCode)?.name ?? originCode)
+    : originStationName?.replace(/(站|东站|南站|西站|北站)$/, '') ?? ''
+  const destCity = destinationCode
+    ? (POPULAR_CITIES.find((c) => c.code === destinationCode)?.name ?? destinationCode)
+    : destStationName?.replace(/(站|东站|南站|西站|北站)$/, '') ?? ''
 
   const L = createLogger({ flow: 'preview-prompt' })
   L.info('start', { originCity, destCity, startDate, endDate, model, hasFeedback: !!userPrompt })
@@ -48,10 +54,15 @@ export async function POST(req: NextRequest) {
   // 构建附加约束描述
   const constraints: string[] = []
 
-  if (originAirportName || originAirportCode) {
+  if (originStationName) {
+    constraints.push(`出发高铁站：${originStationName}`)
+  } else if (originAirportName || originAirportCode) {
     constraints.push(`出发机场：${[originAirportName, originAirportCode].filter(Boolean).join('（').replace(/([^）])$/, '$1）')}`)
   }
-  if (destAirportName || destAirportCode) {
+  if (destStationName) {
+    const timeNote = arrivalTime ? `，到达时间约 ${arrivalTime}` : ''
+    constraints.push(`抵达高铁站：${destStationName}${timeNote}，请将高铁站作为第一天行程起点`)
+  } else if (destAirportName || destAirportCode) {
     const arrive = [destAirportName, destAirportCode].filter(Boolean).join('（').replace(/([^）])$/, '$1）')
     const timeNote = arrivalTime ? `，落地时间约 ${arrivalTime}` : ''
     constraints.push(`抵达机场：${arrive}${timeNote}，请将机场作为第一天行程起点`)
@@ -59,7 +70,11 @@ export async function POST(req: NextRequest) {
     constraints.push(`落地时间约 ${arrivalTime}，请从该时间开始规划第一天行程`)
   }
   if (departureTime) {
-    constraints.push(`返程起飞时间 ${departureTime}，最后一天行程需在此前结束并预留前往机场时间`)
+    if (originStationName) {
+      constraints.push(`返程高铁站：${originStationName}，返程出发时间 ${departureTime}，最后一天行程需在此前结束并预留前往高铁站时间`)
+    } else {
+      constraints.push(`返程起飞时间 ${departureTime}，最后一天行程需在此前结束并预留前往机场时间`)
+    }
   }
   if (travelers && travelers > 1) {
     constraints.push(`同行人数：共 ${travelers} 人，请据此推荐合适规模的住宿、餐厅和活动`)

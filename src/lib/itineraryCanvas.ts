@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import type { DayPlan, FullItinerary } from '@/lib/agents/types'
 
 /* ============================================================
@@ -44,8 +45,9 @@ export async function downloadDayAsImage(
 
   // 切换到目标天（如果不是当前显示的）
   if (dayIndex !== currentDay) {
-    setActiveDay(dayIndex)
-    // 等待 React 渲染 + 地图瓦片加载
+    // 使用 flushSync 强制 React 同步渲染，确保 DOM 在 await 之前已更新
+    flushSync(() => setActiveDay(dayIndex))
+    // 等待地图瓦片等异步资源加载
     await new Promise((r) => setTimeout(r, 900))
   }
 
@@ -85,14 +87,16 @@ export async function downloadAllDays(
   currentDay:   number,
 ) {
   const original = currentDay
+  let current = currentDay
   for (let i = 0; i < itinerary.days.length; i++) {
     await downloadDayAsImage(
       itinerary,
       itinerary.days[i],
       i,
       setActiveDay,
-      i === 0 ? currentDay : i - 1,
+      current,
     )
+    current = i   // 截图完成后，页面已切换到 day i
     if (i < itinerary.days.length - 1) {
       await new Promise((r) => setTimeout(r, 300))
     }

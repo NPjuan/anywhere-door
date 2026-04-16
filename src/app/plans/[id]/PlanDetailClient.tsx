@@ -284,6 +284,8 @@ export function PlanDetailClient({ id, it, savedAt, ownerDeviceId, initIsPublic 
                 <ExportButton
                   itinerary={it}
                   planId={id}
+                  activeDay={activeDay}
+                  setActiveDay={setActiveDay}
                   extra={
                     isOwner ? (
                       /* 本人：公开/私密切换 */
