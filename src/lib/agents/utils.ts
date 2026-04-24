@@ -10,7 +10,7 @@ import { streamObject, streamText, type LanguageModel } from 'ai'
 import type { ZodType, ZodTypeAny } from 'zod'
 import type { DeepPartial } from 'ai'
 
-export type AIProvider = 'deepseek' | 'claude' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1'
+export type AIProvider = 'deepseek' | 'deepseek-flash' | 'claude' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1'
 
 /* ── 每个模型的专属配置 ────────────────────────────────────── */
 interface ModelConfig {
@@ -23,8 +23,9 @@ interface ModelConfig {
 }
 
 const MODEL_CONFIGS: Record<AIProvider, ModelConfig> = {
-  'deepseek':    { useTextFallback: false, temperature: 0.7 },
-  'claude':      { useTextFallback: false, temperature: 0.7 },
+  'deepseek':       { useTextFallback: false, temperature: 0.7 },
+  'deepseek-flash': { useTextFallback: false, temperature: 0.7 },
+  'claude':         { useTextFallback: false, temperature: 0.7 },
   'glm-4-flash': { useTextFallback: true,  temperature: 0.8, maxOutputTokens: 4096  },
   'glm-5-turbo': { useTextFallback: true,  temperature: 0.7, maxOutputTokens: 8192  },
   'glm-5':       { useTextFallback: true,  temperature: 0.6, maxOutputTokens: 8192  },
@@ -51,6 +52,11 @@ export function getAIProvider(override?: AIProvider): LanguageModel {
       baseURL: 'https://open.bigmodel.cn/api/paas/v4',
       apiKey:  process.env.ZHIPU_API_KEY,
     }).chat(provider)
+  }
+
+  // deepseek-flash — V4 Flash 轻量快速模型
+  if (provider === 'deepseek-flash') {
+    return createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-v4-flash')
   }
 
   // deepseek（默认）— V4 Pro 旗舰模型

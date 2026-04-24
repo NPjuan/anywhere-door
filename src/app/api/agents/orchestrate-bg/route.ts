@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
     startDate:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
     endDate:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
     prompt:          z.string().default(''),
-    model:           z.enum(['deepseek', 'claude', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1']).optional(),
+    model:           z.enum(['deepseek', 'deepseek-flash', 'claude', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1']).optional(),
   })
 
   const parsed = schema.safeParse(body)

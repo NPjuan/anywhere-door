@@ -38,7 +38,7 @@ export interface SearchParams {
   arrivalTime:   string;   // HH:mm，落地时间（选填）
   departureTime: string;   // HH:mm，返程起飞时间（选填）
   budgetLimit:   string;   // 预算上限，如 "5000"（选填）
-  aiModel:       'deepseek' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude';  // AI 模型选择
+  aiModel:       'deepseek' | 'deepseek-flash' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude';  // AI 模型选择
 }
 
 interface SearchStore {
@@ -54,7 +54,7 @@ interface SearchStore {
   setArrivalTime:   (t: string) => void;
   setDepartureTime: (t: string) => void;
   setBudgetLimit:   (v: string) => void;
-  setAiModel:       (m: 'deepseek' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude') => void;
+  setAiModel:       (m: 'deepseek' | 'deepseek-flash' | 'glm-4-flash' | 'glm-5-turbo' | 'glm-5' | 'glm-5.1' | 'claude') => void;
   swapCities:       () => void;
   reset:            () => void;
   restore:          (partial: Partial<SearchParams>) => void;

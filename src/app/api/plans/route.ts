@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     itinerary:      z.record(z.string(), z.unknown()).optional(),
     planningParams: z.record(z.string(), z.unknown()).optional(),
     status:         z.enum(['pending', 'done', 'error', 'interrupted']).optional(),
-    aiModel:        z.enum(['deepseek', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1', 'claude']).optional(),
+    aiModel:        z.enum(['deepseek', 'deepseek-flash', 'glm-4-flash', 'glm-5-turbo', 'glm-5', 'glm-5.1', 'claude']).optional(),
   })
 
   const parsed = schema.safeParse(body)
