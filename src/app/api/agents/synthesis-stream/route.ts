@@ -255,15 +255,15 @@ export async function POST(req: NextRequest) {
       try {
         const cfg = getModelConfig(savedModel)
         const isGLM = savedModel?.startsWith('glm') ?? false
-        console.log(JSON.stringify({ event: 'synthesis-start', planId, model: savedModel ?? 'deepseek', isGLM }))
-        L.info('start', { model: savedModel ?? 'deepseek', isGLM, days, originCity, destCity })
+        console.log(JSON.stringify({ event: 'synthesis-start', planId, model: savedModel ?? 'deepseek-flash', isGLM }))
+        L.info('start', { model: savedModel ?? 'deepseek-flash', isGLM, days, originCity, destCity })
         const fullSystem = isGLM
           ? patchSystemForGLM(SYNTHESIS_SYSTEM_PROMPT, FullItinerarySchema)
           : SYNTHESIS_SYSTEM_PROMPT
         const result = streamText({
           model:           getAIProvider(savedModel),
           temperature:     cfg.temperature,
-          maxOutputTokens: cfg.maxOutputTokens ?? 8000,
+          maxOutputTokens: cfg.maxOutputTokens ?? (days >= 6 ? 16000 : 8000),
           system:          fullSystem,
           prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${arrivalWarning}${departureWarning}
 

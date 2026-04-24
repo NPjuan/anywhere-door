@@ -47,7 +47,7 @@ async function triggerPlanning(params: {
     start_date:      startDate,
     end_date:        endDate,
     planning_params: { originCode, destinationCode, startDate, endDate, prompt, finalPrompt: prompt },
-    ai_model:        'deepseek',
+    ai_model:        'deepseek-flash',
     saved_at:        new Date().toISOString(),
   })
   if (dbError) throw new Error(dbError.message)

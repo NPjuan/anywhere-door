@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const destination = (itinerary?.destination as string) ?? ''
   const title = (itinerary?.title as string) ?? ''
   const userPrompt = (itinerary?.userPrompt as string) ?? ''
-  const savedModel = (data.ai_model as AIProvider | undefined) ?? 'deepseek'
+  const savedModel = (data.ai_model as AIProvider | undefined) ?? 'deepseek-flash'
 
   // 其他天的活动名（用于避免重复推荐）
   const otherDayPOIs = days

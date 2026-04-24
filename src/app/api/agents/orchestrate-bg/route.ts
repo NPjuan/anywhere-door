@@ -48,8 +48,8 @@ async function runPlanningInBackground(
   const L = createLogger({ deviceId: planRow?.device_id ?? undefined, planId, flow: 'orchestrate' })
 
   const t0 = Date.now()
-  console.log(JSON.stringify({ event: 'orchestrate-start', planId, model: model ?? 'deepseek', destCity, days }))
-  L.info('start', { model: model ?? 'deepseek', destCity, originCity, days, promptLength: prompt.length })
+  console.log(JSON.stringify({ event: 'orchestrate-start', planId, model: model ?? 'deepseek-flash', destCity, days }))
+  L.info('start', { model: model ?? 'deepseek-flash', destCity, originCity, days, promptLength: prompt.length })
 
   const results: Record<string, unknown> = {}
   const progress: Record<string, { status: string; preview: string; input?: unknown }> = {

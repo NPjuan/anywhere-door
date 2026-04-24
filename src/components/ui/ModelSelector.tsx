@@ -7,8 +7,8 @@ import { useState, useRef, useEffect } from 'react'
 const STORAGE_KEY = 'ad_ai_model'
 
 const MODELS = [
-  { value: 'deepseek', label: 'DeepSeek V4', desc: '默认，1M 上下文，综合能力最强' },
-  { value: 'deepseek-flash', label: 'DeepSeek V4 Flash', desc: '更快更便宜，适合简单行程' },
+  { value: 'deepseek-flash', label: 'DeepSeek V4 Flash', desc: '默认，快速且便宜' },
+  { value: 'deepseek', label: 'DeepSeek V4 Pro', desc: '1M 上下文，综合能力最强' },
 ] as const
 
 export function ModelSelector() {

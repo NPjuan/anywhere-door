@@ -33,11 +33,11 @@ const MODEL_CONFIGS: Record<AIProvider, ModelConfig> = {
 }
 
 function resolveProvider(override?: AIProvider): AIProvider {
-  return override ?? (process.env.AI_PROVIDER ?? 'deepseek') as AIProvider
+  return override ?? (process.env.AI_PROVIDER ?? 'deepseek-flash') as AIProvider
 }
 
 export function getModelConfig(override?: AIProvider): ModelConfig {
-  return MODEL_CONFIGS[resolveProvider(override)] ?? MODEL_CONFIGS['deepseek']
+  return MODEL_CONFIGS[resolveProvider(override)] ?? MODEL_CONFIGS['deepseek-flash']
 }
 
 export function getAIProvider(override?: AIProvider): LanguageModel {

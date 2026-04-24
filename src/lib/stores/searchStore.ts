@@ -75,7 +75,7 @@ export const defaultSearchParams: SearchParams = {
   arrivalTime:   '',
   departureTime: '',
   budgetLimit:   '',
-  aiModel:       'deepseek',
+  aiModel:       'deepseek-flash',
 };
 
 export const useSearchStore = create<SearchStore>()((set, get) => ({

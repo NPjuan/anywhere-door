@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     budget_high:     (itinerary?.budget as { high?: number })?.high ?? 0,
     itinerary:       itinerary ?? null,
     planning_params: planningParams ?? null,
-    ai_model:        aiModel ?? 'deepseek',
+    ai_model:        aiModel ?? 'deepseek-flash',
     saved_at:        new Date().toISOString(),
   })
 
