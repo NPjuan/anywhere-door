@@ -337,7 +337,9 @@ export function useHomeFlow() {
             msg.includes('Failed to fetch') ||
             msg.includes('Load failed') ||
             msg.includes('timeout') ||
-            msg.includes('timed out');
+            msg.includes('timed out') ||
+            msg.includes('Synthesis failed on server') ||
+            msg.includes('Itinerary not found after synthesis');
 
           if (isRetryable && attempt < MAX_RETRIES) {
             attempt++;

@@ -118,8 +118,10 @@ export async function POST(req: NextRequest) {
   }
 
   const progress = data.agent_progress as Record<string, { status: string; preview: string; input?: Record<string, unknown> }> | null
-  const synthInput = progress?.synthesis?.input
+  const synthState = progress?.synthesis
+  const synthInput = synthState?.input
 
+  // 允许 waiting（正常首次）和 running（中断重试）
   if (!synthInput) {
     return new Response(JSON.stringify({ error: 'Synthesis input not ready' }), { status: 400 })
   }
@@ -127,8 +129,7 @@ export async function POST(req: NextRequest) {
   // 读取规划时选择的模型（独立列）
   const { data: planData } = await supabase.from('plans').select('ai_model, planning_params, device_id').eq('id', planId).single()
   const rawModel = (planData?.ai_model ?? (planData?.planning_params as Record<string, unknown> | null)?.model) as AIProvider | undefined
-  // synthesis 需要生成完整行程 JSON，Flash 输出能力不足，自动升级为 Pro
-  const savedModel: AIProvider | undefined = rawModel === 'deepseek-flash' ? 'deepseek' : rawModel
+  const savedModel = rawModel
   const deviceId = planData?.device_id as string | undefined
 
   const L = createLogger({ deviceId, planId, flow: 'synthesis' })
@@ -220,7 +221,7 @@ export async function POST(req: NextRequest) {
     : ''
   const updatedProgress = {
     ...progress,
-    synthesis: { status: 'running', preview: '' },
+    synthesis: { ...progress?.synthesis, status: 'running', preview: '' },
   }
   await supabase.from('plans').update({ agent_progress: updatedProgress }).eq('id', planId)
 
