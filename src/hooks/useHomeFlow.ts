@@ -366,9 +366,32 @@ export function useHomeFlow() {
             return;
           }
 
+          // 非网络错误：可能是服务端超时但已写入 DB，先查 DB 再报错
           synthStreamActiveRef.current = false;
           console.error('[useHomeFlow] synthesis stream error:', err);
-          dispatch({ type: 'SET_ERROR', error: '行程汇总失败，请重试' });
+
+          // 尝试从 DB 兜底获取结果（服务端可能已成功写入）
+          try {
+            const detail = await fetch(`/api/plans/${planId}`, {
+              headers: { 'x-device-id': getDeviceId() },
+            }).then((r) => r.ok ? r.json() : null);
+            if (detail?.plan?.status === 'done' && detail.plan.itinerary) {
+              setItinerary(JSON.stringify(detail.plan.itinerary));
+              setPlanId(planId);
+              updateAgent('synthesis', { status: 'done', progress: 100, message: '✓ 行程生成完成', streamChunk: '' });
+              setComplete(`plan-${planId}`);
+              dispatch({ type: 'PLANNING_DONE' });
+              return;
+            }
+          } catch { /* DB 查询失败，继续降级 */ }
+
+          // DB 也没有结果，降级到轮询（服务端可能还在写）
+          updateAgent('synthesis', {
+            status: 'running',
+            progress: Math.min(synthProgressRef.current, 90),
+            message: '等待结果中...',
+          });
+          startPollingRef.current?.(planId);
         }
       };
 
@@ -386,7 +409,7 @@ export function useHomeFlow() {
       // 重置轮询状态
       pollStateRef.current = {
         retries: 0,
-        maxRetries: 30, // 30 × 2.5s = 75 seconds
+        maxRetries: 120, // 连续失败上限（每次成功获取数据会重置）
         timeout: 8000, // 8 second timeout per request
         startTime: Date.now(),
         lastUpdateTime: Date.now(),
@@ -400,22 +423,49 @@ export function useHomeFlow() {
         const now = Date.now();
         const elapsedSinceStart = now - pollState.startTime;
 
-        // ===== 检查 1: 总超时 (3 分钟) =====
-        if (elapsedSinceStart > 180000) {
+        // ===== 检查 1: 活跃超时 — 10 分钟内无任何有效数据返回 =====
+        const timeSinceLastUpdate = now - pollState.lastUpdateTime;
+        if (timeSinceLastUpdate > 600000) {
+          // 先查 DB，如果 plan 仍是 pending 说明后端还在跑，自动重启轮询
+          try {
+            const check = await fetch(`/api/plans/${planId}`, {
+              headers: { 'x-device-id': getDeviceId() },
+            }).then(r => r.ok ? r.json() : null);
+            if (check?.plan?.status === 'pending') {
+              console.warn(`[useHomeFlow] Plan ${planId} still pending after 10min silence, resetting poll timer`);
+              pollState.lastUpdateTime = Date.now();
+              pollState.retries = 0;
+              pollState.staleWarningShown = false;
+              return; // 继续轮询，不报错
+            }
+          } catch { /* 网络不通，继续走报错 */ }
           stopPolling();
           dispatch({
             type: 'SET_ERROR',
-            error: '行程生成超时（3分钟），请检查网络连接后重试',
+            error: '行程生成超时（10分钟无响应），请检查网络连接后重试',
           });
           return;
         }
 
-        // ===== 检查 2: 重试次数超限 (75 秒) =====
+        // ===== 检查 2: 连续请求失败超限 =====
         if (pollState.retries >= pollState.maxRetries) {
+          // 同样先查 DB 确认 plan 是否仍在运行
+          try {
+            const check = await fetch(`/api/plans/${planId}`, {
+              headers: { 'x-device-id': getDeviceId() },
+            }).then(r => r.ok ? r.json() : null);
+            if (check?.plan?.status === 'pending') {
+              console.warn(`[useHomeFlow] Plan ${planId} still pending despite ${pollState.retries} retries, resetting`);
+              pollState.retries = 0;
+              pollState.lastUpdateTime = Date.now();
+              pollState.staleWarningShown = false;
+              return; // 继续轮询
+            }
+          } catch { /* 网络不通，继续走报错 */ }
           stopPolling();
           dispatch({
             type: 'SET_ERROR',
-            error: '网络连接不稳定，请检查网络后重试',
+            error: '网络连接持续失败，请检查网络后重试',
           });
           return;
         }
@@ -853,7 +903,7 @@ export function useHomeFlow() {
                 }
               } catch { /* 静默，下次继续 */ }
             }, 1500)
-            setTimeout(() => clearInterval(fastPoll), 3 * 60 * 1000)
+            setTimeout(() => clearInterval(fastPoll), 10 * 60 * 1000)
           } else {
             // 其他情况：标准轮询等待 synthesis waiting 信号
             startPollingForPlan(latest.id)
