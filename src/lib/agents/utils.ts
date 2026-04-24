@@ -53,8 +53,8 @@ export function getAIProvider(override?: AIProvider): LanguageModel {
     }).chat(provider)
   }
 
-  // deepseek（默认）
-  return createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat')
+  // deepseek（默认）— V4 Pro 旗舰模型
+  return createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-v4-pro')
 }
 
 /* ── 从 Zod schema 生成示例结构（注入 GLM system prompt 用）── */
