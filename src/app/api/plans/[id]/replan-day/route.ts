@@ -56,7 +56,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const destination = (itinerary?.destination as string) ?? ''
   const title = (itinerary?.title as string) ?? ''
   const userPrompt = (itinerary?.userPrompt as string) ?? ''
-  const savedModel = (data.ai_model as AIProvider | undefined) ?? 'deepseek-flash'
+  const rawModel = (data.ai_model as AIProvider | undefined) ?? 'deepseek-flash'
+  // replan-day 需要输出完整单日 JSON，Flash 输出能力不足，自动升级为 Pro
+  const savedModel: AIProvider = rawModel === 'deepseek-flash' ? 'deepseek' : rawModel
 
   // 其他天的活动名（用于避免重复推荐）
   const otherDayPOIs = days

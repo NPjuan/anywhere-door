@@ -126,7 +126,9 @@ export async function POST(req: NextRequest) {
 
   // 读取规划时选择的模型（独立列）
   const { data: planData } = await supabase.from('plans').select('ai_model, planning_params, device_id').eq('id', planId).single()
-  const savedModel = (planData?.ai_model ?? (planData?.planning_params as Record<string, unknown> | null)?.model) as AIProvider | undefined
+  const rawModel = (planData?.ai_model ?? (planData?.planning_params as Record<string, unknown> | null)?.model) as AIProvider | undefined
+  // synthesis 需要生成完整行程 JSON，Flash 输出能力不足，自动升级为 Pro
+  const savedModel: AIProvider | undefined = rawModel === 'deepseek-flash' ? 'deepseek' : rawModel
   const deviceId = planData?.device_id as string | undefined
 
   const L = createLogger({ deviceId, planId, flow: 'synthesis' })
