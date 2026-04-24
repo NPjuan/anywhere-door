@@ -7,7 +7,7 @@ import type { AIProvider } from '@/lib/agents/utils'
 import { SYNTHESIS_SYSTEM_PROMPT } from '@/lib/agents/prompts'
 import { FullItinerarySchema } from '@/lib/agents/types'
 import { supabase } from '@/lib/supabase'
-import { parseJSON } from '@/lib/utils/jsonParse'
+import { parseJSON, attemptJSONRepair } from '@/lib/utils/jsonParse'
 import { createLogger } from '@/lib/logger'
 
 /* ── 行程后置校验与修复 ────────────────────────────────────────
@@ -266,7 +266,8 @@ export async function POST(req: NextRequest) {
         const result = streamText({
           model:           getAIProvider(savedModel),
           temperature:     cfg.temperature,
-          maxOutputTokens: cfg.maxOutputTokens ?? (days >= 6 ? 16000 : 8000),
+          // GLM 需要限制 maxOutputTokens，DeepSeek/Claude 不限制（V4 支持超长输出）
+          ...(cfg.maxOutputTokens ? { maxOutputTokens: cfg.maxOutputTokens } : {}),
           system:          fullSystem,
           prompt: `将以下信息整合为完整旅行方案的 FullItinerary JSON：${selfPlanNote}${arrivalWarning}${departureWarning}
 
@@ -293,6 +294,16 @@ ${agentDataSection}${poiCoordsSection}
 
         // 流结束，解析 JSON 并写 DB
         let parsed = parseJSON<Record<string, unknown>>(accumulated)
+
+        // 截断修复：AI 输出被截断时尝试补全括号
+        if (!parsed) {
+          const repaired = attemptJSONRepair(accumulated)
+          parsed = parseJSON<Record<string, unknown>>(repaired)
+          if (parsed) {
+            console.log(JSON.stringify({ event: 'synthesis-repaired', planId, origChars: accumulated.length }))
+            L.info('json-repaired', { origChars: accumulated.length })
+          }
+        }
 
         if (!parsed) {
           console.error(JSON.stringify({
